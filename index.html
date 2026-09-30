@@ -239,6 +239,23 @@
         <button type="button" id="btn-mobile-mode-stealth" style="flex:1;background:#2563eb;" onclick="setMobileMode('STEALTH_MONITORING')">🕵️ 隱密監測模式</button>
       </div>
 
+      <div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#fef3c7;border:1px solid #f59e0b;">
+        <div style="font-weight:800;font-size:0.8rem;color:#92400e;">🔒 鎖定 LINE 禁止主動新增好友：<span id="mobile-lock-friend-badge" style="color:#b45309;">🔒 已鎖定</span></div>
+        <div style="font-size:0.72rem;color:#78350f;margin-top:2px;">開啟後，媽媽點開 LINE「加入好友／掃描行動條碼／搜尋 ID／點擊陌生人加入好友」將立即彈出家長 PIN 碼鎖並退回上一頁。</div>
+        <div class="m-row" style="margin-top:6px;">
+          <button type="button" id="btn-mobile-lock-friend-on" class="ok" style="flex:1;padding:6px 8px;font-size:0.76rem;" onclick="setMobileLockAddFriend(true)">🔒 開啟鎖定加好友</button>
+          <button type="button" id="btn-mobile-lock-friend-off" class="secondary" style="flex:1;padding:6px 8px;font-size:0.76rem;" onclick="setMobileLockAddFriend(false)">🔓 暫時允許加好友</button>
+        </div>
+      </div>
+
+      <div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#eff6ff;border:1px solid #93c5fd;">
+        <div style="font-weight:800;font-size:0.8rem;color:#1e40af;">🧠 每日打包 LINE 聊天紀錄送交 LLM 深度檢查</div>
+        <div id="mobile-llm-audit-box" style="font-size:0.73rem;color:#1e293b;margin-top:4px;white-space:pre-line;">尚無 AI 深度審查報告。</div>
+        <div class="m-row" style="margin-top:6px;">
+          <button type="button" id="btn-mobile-run-llm-audit" style="flex:1;padding:6px 8px;font-size:0.76rem;background:#2563eb;" onclick="runMobileLlmAudit()">🧠 立即執行今日 AI 深度檢查</button>
+        </div>
+      </div>
+
       <div style="margin-top:10px;">
         <div style="font-weight:800;font-size:0.82rem;color:#7c2d12;">👤 核准 LINE 聯絡人白名單</div>
         <div id="mobile-contact-chips" class="chip-wrap"></div>
@@ -576,6 +593,7 @@
     config_revision_ms: 0,
     config_source: 'mobile_guardian_web',
     protection_mode: 'ACTIVE_BLOCKING',
+    lock_add_friend_enabled: true,
     whitelist_contacts: [],
     whitelist_groups: [],
     false_positive_exclusions: [],
@@ -589,6 +607,8 @@
     heartbeat: {},
     alert_history: [],
     alerts_cleared_at_ms: 0,
+    daily_chat_digest: {},
+    last_llm_audit_report: {},
     remote_lock_command: {},
     last_acked_remote_lock_ms: 0,
     github_sync_token: '',
@@ -749,11 +769,21 @@
       push_policy: (newer.line_quota_tracker && newer.line_quota_tracker.push_policy) || localQuota.push_policy || 'ALL_ALERTS',
     };
 
+    const lockFriendVal = newer.lock_add_friend_enabled !== undefined
+      ? Boolean(newer.lock_add_friend_enabled)
+      : (older.lock_add_friend_enabled !== undefined ? Boolean(older.lock_add_friend_enabled) : true);
+
+    const localAudit = local.last_llm_audit_report || {};
+    const remoteAudit = remote.last_llm_audit_report || {};
+    const mergedAudit = Number(remoteAudit.generated_at_ms || 0) >= Number(localAudit.generated_at_ms || 0)
+      ? remoteAudit : localAudit;
+
     return {
       ...older,
       ...newer,
       config_revision_ms: Math.max(localRev, remoteRev),
       protection_mode: newer.protection_mode || 'ACTIVE_BLOCKING',
+      lock_add_friend_enabled: lockFriendVal,
       whitelist_contacts: Array.isArray(newer.whitelist_contacts) ? newer.whitelist_contacts : [],
       whitelist_groups: Array.isArray(newer.whitelist_groups) ? newer.whitelist_groups : [],
       false_positive_exclusions: Array.from(fpSet),
@@ -762,6 +792,8 @@
       heartbeat: mergedHb,
       alert_history: mergedAlerts,
       alerts_cleared_at_ms: clearedAtMs,
+      daily_chat_digest: newer.daily_chat_digest || older.daily_chat_digest || {},
+      last_llm_audit_report: mergedAudit,
       remote_lock_command: mergedLock,
       last_acked_remote_lock_ms: mergedAckMs,
       github_sync_token: newer.github_sync_token || older.github_sync_token || '',
@@ -789,6 +821,7 @@
                 mobileState = mergeEnvelopeState(mobileState, {
                   config_revision_ms: c.config_revision_ms || 0,
                   protection_mode: c.protection_mode || 'ACTIVE_BLOCKING',
+                  lock_add_friend_enabled: c.lock_add_friend_enabled !== undefined ? Boolean(c.lock_add_friend_enabled) : true,
                   whitelist_contacts: c.whitelist_contacts || [],
                   whitelist_groups: c.whitelist_groups || [],
                   false_positive_exclusions: c.false_positive_exclusions || [],
@@ -796,6 +829,8 @@
                   guardian_pin: c.guardian_pin || {},
                   heartbeat: c.heartbeat || {},
                   alert_history: c.alert_history || [],
+                  daily_chat_digest: c.daily_chat_digest || {},
+                  last_llm_audit_report: c.last_llm_audit_report || {},
                   remote_lock_command: c.remote_lock_command || {},
                   last_acked_remote_lock_ms: c.last_acked_remote_lock_ms || 0,
                 });
@@ -976,6 +1011,64 @@
     await syncMobileCloudNow(true);
   }
 
+  async function setMobileLockAddFriend(enabled) {
+    const cfg = getActiveConfigInputs();
+    if (!cfg.lineToken && window.location.protocol.startsWith('http') && !cfg.customApiUrl) {
+      try {
+        await fetch('/api/config/lock-add-friend', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: Boolean(enabled) }),
+        });
+      } catch (e) {}
+    }
+    mobileState.lock_add_friend_enabled = Boolean(enabled);
+    mobileState.config_revision_ms = Math.max(Date.now(), Number(mobileState.config_revision_ms || 0) + 1);
+    mobileState.config_source = 'mobile_guardian_web';
+    renderMobileState();
+    await syncMobileCloudNow(true);
+    setBanner(
+      'mobile-sync-output',
+      enabled
+        ? '🔒 已開啟「鎖定 LINE 禁止主動新增好友」並推送雲端！媽媽點擊加好友或掃描 QR Code 將立即彈出 PIN 碼鎖。'
+        : '🔓 已暫時允許媽媽新增 LINE 好友並同步雲端。',
+      true
+    );
+  }
+
+  async function runMobileLlmAudit() {
+    setBanner('mobile-sync-output', '🧠 正在打包媽媽今日 LINE 對話紀錄並送交 AI 深度審查…', null);
+    if (window.location.protocol.startsWith('http')) {
+      try {
+        const resp = await fetch('/api/reports/daily-llm-audit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.report) {
+            mobileState.last_llm_audit_report = data.report;
+            renderMobileState();
+            setBanner(
+              'mobile-sync-output',
+              `🧠 AI 深度審查完成：風險等級 ${data.report.overall_risk_level}（可疑對話 ${data.report.suspicious_chat_count} 個）`,
+              data.report.suspicious_chat_count === 0
+            );
+            return data;
+          }
+        }
+      } catch (e) {}
+    }
+    await syncMobileCloudNow(false);
+    const rep = mobileState.last_llm_audit_report || {};
+    if (rep.formatted_message) {
+      setBanner('mobile-sync-output', rep.formatted_message, rep.suspicious_chat_count === 0);
+    } else {
+      setBanner('mobile-sync-output', '✅ 已同步雲端最新每日對話摘要與 AI 審查狀態。', true);
+    }
+  }
+
   async function setMobilePushPolicy(policy) {
     const cfg = getActiveConfigInputs();
     if (!cfg.lineToken && window.location.protocol.startsWith('http') && !cfg.customApiUrl) {
@@ -1068,6 +1161,7 @@
     const summaryText = [
       '📊【長輩 LINE 防詐守護・每週守護摘要】',
       `• 防護模式：${mobileState.protection_mode || 'ACTIVE_BLOCKING'}`,
+      `• 鎖定禁止新增好友：${mobileState.lock_add_friend_enabled !== false ? '已開啟🔒' : '暫時開放🔓'}`,
       `• 最後心跳：${hbTxt}`,
       `• 累計攔截與警報：${alerts.length} 則`,
       `• 白名單聯絡人：${(mobileState.whitelist_contacts || []).length} 位｜群組：${(mobileState.whitelist_groups || []).length} 個｜誤報豁免：${(mobileState.false_positive_exclusions || []).length} 個`,
@@ -1136,6 +1230,23 @@
     if (badge) {
       badge.textContent = mode === 'ACTIVE_BLOCKING' ? '🔴 嚴格攔截 (ACTIVE_BLOCKING)' : '🕵️ 隱密監測 (STEALTH_MONITORING)';
       badge.className = 'status-pill ' + (mode === 'ACTIVE_BLOCKING' ? 'pill-active' : 'pill-stealth');
+    }
+    const lockFriendEnabled = mobileState.lock_add_friend_enabled !== false;
+    const lockBadge = $id('mobile-lock-friend-badge');
+    if (lockBadge) {
+      lockBadge.textContent = lockFriendEnabled ? '🔒 已鎖定（禁止主動加好友／掃 QR）' : '🔓 暫時允許加好友';
+      lockBadge.style.color = lockFriendEnabled ? '#b45309' : '#64748b';
+    }
+    const auditBox = $id('mobile-llm-audit-box');
+    if (auditBox) {
+      const rep = mobileState.last_llm_audit_report || {};
+      if (rep.formatted_message) {
+        auditBox.textContent = rep.formatted_message;
+      } else {
+        const digest = mobileState.daily_chat_digest || {};
+        const chats = Array.isArray(digest.chats) ? digest.chats : [];
+        auditBox.textContent = `今日（${digest.date_key || '尚無日期'}）已自動打包 ${chats.length} 個對話，點擊下方按鈕即可送交 AI 深度檢查。`;
+      }
     }
     if ($id('mobile-revision-text')) {
       $id('mobile-revision-text').textContent = String(mobileState.config_revision_ms || 0);
