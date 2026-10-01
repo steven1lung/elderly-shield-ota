@@ -179,15 +179,18 @@
 
     <!-- Card 1: Emergency Remote Lock -->
     <section class="m-card emergency-card" id="mobileEmergencyLockCard">
-      <h2>🚨 遠端緊急鎖定媽媽手機 <span style="font-size:0.72rem;font-weight:700;">LINE 使用中每 30 秒極速檢查</span></h2>
+      <h2>🚨 遠端緊急鎖定媽媽手機 <span style="font-size:0.72rem;font-weight:700;">鎖定中每 15 秒極速同步・重開機仍持續鎖住</span></h2>
       <div style="font-size:0.78rem;color:#7f1d1d;line-height:1.4;">
-        發現媽媽正在與可疑對象通話或準備匯款時，按下此鈕會立即透過雲端下達緊急鎖定指令：媽媽手機會在 30 秒內強制切回「🔴 嚴格白名單攔截模式」、收回維護期、把守護盾退回 PIN 密碼鎖，並在畫面最上層彈出滿版紅底阻斷警告！
+        發現媽媽正在與可疑對象通話或準備匯款時，按下此鈕會立即透過雲端下達緊急鎖定指令：媽媽手機會強制切回「🔴 嚴格白名單攔截模式」、收回維護期、在所有畫面（包含主畫面桌面與重開機後）持續顯示滿版紅底阻斷警告，且<strong>隱藏返回桌面按鈕</strong>，直到家屬按下方「🔓 遠端解除鎖定媽媽手機」或輸入 6 位數家長密碼！
       </div>
       <div class="m-row">
         <input type="text" id="mobile-remote-lock-reason" value="家屬從手機遠端緊急鎖定：請先暫停操作並接聽家人電話！" placeholder="顯示在媽媽手機上的緊急鎖定原因" />
       </div>
       <button type="button" id="btn-mobile-remote-lock" class="emergency-btn" onclick="triggerMobileRemoteLock()">
-        🚨 立即遠端鎖定媽媽手機
+        🚨 立即遠端鎖定媽媽手機（連主畫面與重開機持續鎖定）
+      </button>
+      <button type="button" id="btn-mobile-remote-unlock" class="ok" style="width:100%;margin-top:8px;padding:12px;font-size:0.95rem;border-radius:12px;" onclick="triggerMobileRemoteUnlock()">
+        🔓 遠端解除鎖定媽媽手機
       </button>
       <div id="mobile-remote-lock-status" class="result-banner">目前無待執行的遠端鎖定指令。</div>
     </section>
@@ -746,8 +749,22 @@
 
     const localLock = local.remote_lock_command || {};
     const remoteLock = remote.remote_lock_command || {};
-    const mergedLock = Number(remoteLock.requested_at_ms || 0) >= Number(localLock.requested_at_ms || 0)
-      ? remoteLock : localLock;
+    const localReqMs = Number(localLock.requested_at_ms || 0);
+    const remoteReqMs = Number(remoteLock.requested_at_ms || 0);
+    const localUnlockMs = Number(localLock.unlocked_at_ms || 0);
+    const remoteUnlockMs = Number(remoteLock.unlocked_at_ms || 0);
+    const mergedReqMs = Math.max(localReqMs, remoteReqMs);
+    const mergedUnlockMs = Math.max(localUnlockMs, remoteUnlockMs);
+    const reqSrc = remoteReqMs >= localReqMs ? remoteLock : localLock;
+    const unlockSrc = remoteUnlockMs >= localUnlockMs ? remoteLock : localLock;
+    const mergedLock = {
+      requested_at_ms: mergedReqMs,
+      reason: reqSrc.reason || '',
+      requested_by: reqSrc.requested_by || '',
+      unlocked_at_ms: mergedUnlockMs,
+      unlocked_by: unlockSrc.unlocked_by || '',
+      active: mergedReqMs > 0 && mergedReqMs > mergedUnlockMs,
+    };
 
     const mergedAckMs = Math.max(
       Number(local.last_acked_remote_lock_ms || 0),
@@ -960,7 +977,7 @@
         if (data.ok && data.config) {
           mobileState = mergeEnvelopeState(mobileState, data.config);
           renderMobileState();
-          setBanner('mobile-remote-lock-status', '🚨 已透過伺服器下達遠端緊急鎖定指令！媽媽手機將在 30 秒內強制鎖定並彈出紅底警告。', true);
+          setBanner('mobile-remote-lock-status', '🚨 已透過伺服器下達遠端緊急鎖定指令！媽媽手機將強制鎖定（連主畫面與重開機後皆持續鎖定，直到家屬解鎖）。', true);
           return data;
         }
       } catch (e) {}
@@ -973,6 +990,9 @@
       requested_at_ms: mobileState.config_revision_ms,
       reason,
       requested_by: '家屬手機隨身守護頁',
+      unlocked_at_ms: 0,
+      unlocked_by: '',
+      active: true,
     };
     mobileState.alert_history = mergeAlertHistory(
       mobileState.alert_history,
@@ -995,7 +1015,54 @@
     if (ok) {
       setBanner(
         'mobile-remote-lock-status',
-        `🚨 已發送遠端緊急鎖定指令（#${mobileState.remote_lock_command.requested_at_ms}）！媽媽若正在使用 LINE 將在 30 秒內立即彈出滿版紅底警告並鎖回密碼頁。`,
+        `🚨 已發送遠端緊急鎖定指令（#${mobileState.remote_lock_command.requested_at_ms}）！媽媽手機將強制鎖定（連主畫面與重開機後皆持續鎖定，直到家屬解鎖）。`,
+        true
+      );
+    }
+    return ok;
+  }
+
+  async function triggerMobileRemoteUnlock() {
+    const nowMs = Date.now();
+    const cfg = getActiveConfigInputs();
+
+    if (!cfg.lineToken && window.location.protocol.startsWith('http') && !cfg.customApiUrl) {
+      try {
+        const resp = await fetch('/api/cloud/remote-unlock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ unlocked_by: '家屬手機隨身守護頁' }),
+        });
+        const data = await resp.json();
+        if (data.ok && data.config) {
+          mobileState = mergeEnvelopeState(mobileState, data.config);
+          renderMobileState();
+          setBanner('mobile-remote-lock-status', '🔓 已透過伺服器下達遠端解除鎖定指令！媽媽手機將在 15 秒內自動解除鎖定畫面。', true);
+          return data;
+        }
+      } catch (e) {}
+    }
+
+    const prevCmd = mobileState.remote_lock_command || {};
+    const prevReqMs = Number(prevCmd.requested_at_ms || 0);
+    const unlockTs = Math.max(nowMs, prevReqMs + 1, Number(mobileState.config_revision_ms || 0) + 1);
+    mobileState.config_revision_ms = unlockTs;
+    mobileState.config_source = 'mobile_remote_emergency_unlock';
+    mobileState.remote_lock_command = {
+      requested_at_ms: prevReqMs,
+      reason: prevCmd.reason || '',
+      requested_by: prevCmd.requested_by || '',
+      unlocked_at_ms: unlockTs,
+      unlocked_by: '家屬手機隨身守護頁',
+      active: false,
+    };
+    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    renderMobileState();
+    const ok = await syncMobileCloudNow(true);
+    if (ok) {
+      setBanner(
+        'mobile-remote-lock-status',
+        `🔓 已發送遠端解除鎖定指令（#${unlockTs}）！媽媽手機將在 15 秒內自動解除滿版紅底鎖定畫面。`,
         true
       );
     }
@@ -1294,18 +1361,25 @@
     // Remote lock status
     const cmd = mobileState.remote_lock_command || {};
     const reqMs = Number(cmd.requested_at_ms || 0);
+    const unlockMs = Number(cmd.unlocked_at_ms || 0);
     const ackMs = Number(mobileState.last_acked_remote_lock_ms || 0);
-    if (reqMs > 0) {
+    if (unlockMs > 0 && unlockMs >= reqMs) {
+      setBanner(
+        'mobile-remote-lock-status',
+        `🔓 已於 #${unlockMs} 解除遠端緊急鎖定（由 ${cmd.unlocked_by || '家屬'} 解鎖）。`,
+        true
+      );
+    } else if (reqMs > 0) {
       if (ackMs >= reqMs) {
         setBanner(
           'mobile-remote-lock-status',
-          `✅ 媽媽手機已於 #${ackMs} 確認執行遠端鎖定！（原因：${cmd.reason || '家屬遠端鎖定'}）`,
+          `🔒 媽媽手機已於 #${ackMs} 確認鎖定中（連主畫面與重開機後皆持續鎖住，原因：${cmd.reason || '家屬遠端鎖定'}）`,
           true
         );
       } else {
         setBanner(
           'mobile-remote-lock-status',
-          `⏳ 遠端鎖定指令已送出（#${reqMs}），等待媽媽手機同步確認（使用 LINE 時每 30 秒自動檢查）。`,
+          `⏳ 遠端鎖定指令已送出（#${reqMs}），等待媽媽手機同步執行。`,
            null
         );
       }
