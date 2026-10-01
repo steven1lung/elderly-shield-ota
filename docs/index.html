@@ -615,6 +615,7 @@
     remote_lock_command: {},
     last_acked_remote_lock_ms: 0,
     github_sync_token: '',
+    gemini_api_key: '',
   };
   let lastRemoteSha = '';
   let lastRemoteEtag = '';
@@ -814,6 +815,7 @@
       remote_lock_command: mergedLock,
       last_acked_remote_lock_ms: mergedAckMs,
       github_sync_token: newer.github_sync_token || older.github_sync_token || '',
+      gemini_api_key: newer.gemini_api_key || older.gemini_api_key || '',
     };
   }
 
@@ -1119,7 +1121,7 @@
             renderMobileState();
             setBanner(
               'mobile-sync-output',
-              `🧠 AI 深度審查完成：風險等級 ${data.report.overall_risk_level}（可疑對話 ${data.report.suspicious_chat_count} 個）`,
+              `🧠 AI 深度審查完成（${data.report.engine_used || 'Argon-D / Gemini 3.8 Flash High'}）：風險等級 ${data.report.overall_risk_level}（可疑對話 ${data.report.suspicious_chat_count} 個）`,
               data.report.suspicious_chat_count === 0
             );
             return data;
@@ -1128,6 +1130,70 @@
       } catch (e) {}
     }
     await syncMobileCloudNow(false);
+    const geminiKey = String(mobileState.gemini_api_key || '').trim();
+    const digest = mobileState.daily_chat_digest || {};
+    const chats = Array.isArray(digest.chats) ? digest.chats : [];
+    if (geminiKey && chats.length > 0) {
+      try {
+        const prompt = '你是台灣長輩 LINE 防詐守護系統的資深反詐騙 AI 稽核專家。請深度推理以下今日 LINE 對話摘要是否涉及養套殺、刺探貸款銀行卡、合資返款或教導規避銀行行員提問，並嚴格只回傳 JSON：{"overall_risk_level":"SAFE|MEDIUM|HIGH|CRITICAL","narrative":"150字內繁體中文結論","suspicious_chats":[{"chat_title":"...","risk_level":"HIGH|CRITICAL","reason":"..."}]}\n\n' + JSON.stringify(chats);
+        const candidateModels = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.1-pro-preview', 'gemini-3-flash-preview'];
+        let llmJson = null;
+        let usedModel = 'gemini-3.8-flash';
+        for (const mId of candidateModels) {
+          try {
+            const llmResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${mId}:generateContent?key=${geminiKey}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                  temperature: 0.1,
+                  maxOutputTokens: 4096,
+                  responseMimeType: 'application/json',
+                  thinkingConfig: { thinkingLevel: 'HIGH' },
+                },
+              }),
+            });
+            if (llmResp.ok) {
+              llmJson = await llmResp.json();
+              usedModel = mId;
+              break;
+            }
+          } catch (innerErr) {}
+        }
+        if (llmJson) {
+          const parts = (((llmJson.candidates || [])[0] || {}).content || {}).parts || [];
+          const txt = parts.filter(p => p && p.text && !p.thought).map(p => p.text).join('\n').trim();
+          const parsed = JSON.parse(txt);
+          const nowMs = Date.now();
+          const dateKey = digest.date_key || new Date(nowMs).toISOString().slice(0, 10);
+          const suspCount = Array.isArray(parsed.suspicious_chats) ? parsed.suspicious_chats.length : 0;
+          const riskLvl = parsed.overall_risk_level || (suspCount > 0 ? 'CRITICAL' : 'SAFE');
+          const modelLabel = `${usedModel} (thinkingLevel=HIGH)`;
+          const msg = `【🧠 每日 LINE 聊天紀錄 AI 檢查報告（${dateKey}）】\n• 推理引擎：${modelLabel}\n• 最高風險等級：${riskLvl}\n• 🤖 AI 深度推理結論：${parsed.narrative || ''}`;
+          mobileState.last_llm_audit_report = {
+            ok: true,
+            date_key: dateKey,
+            generated_at_ms: nowMs,
+            audited_at_epoch: nowMs / 1000.0,
+            engine_used: modelLabel,
+            llm_model: modelLabel,
+            llm_used: true,
+            overall_risk_level: riskLvl,
+            total_chat_count: chats.length,
+            suspicious_chat_count: suspCount,
+            summary_text: msg,
+            summary_zh: parsed.narrative || '',
+            formatted_message: msg,
+            llm_narrative: parsed.narrative || '',
+          };
+          renderMobileState();
+          await syncMobileCloudNow(true);
+          setBanner('mobile-sync-output', msg, suspCount === 0);
+          return mobileState.last_llm_audit_report;
+        }
+      } catch (e) {}
+    }
     const rep = mobileState.last_llm_audit_report || {};
     if (rep.formatted_message) {
       setBanner('mobile-sync-output', rep.formatted_message, rep.suspicious_chat_count === 0);
