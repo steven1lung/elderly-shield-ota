@@ -215,11 +215,11 @@
     }
   </style>
 </head>
-<body id="mobileGuardianPage" data-page="mobile-guardian" data-release-version="v1.0.90" data-version-code="92">
+<body id="mobileGuardianPage" data-page="mobile-guardian" data-release-version="v1.0.91" data-version-code="93">
   <div class="m-wrap">
     <header class="m-header">
       <h1>
-        <span>📱 長輩防詐隨身守護頁 <small style="font-size:0.72rem;opacity:0.9;">v1.0.90</small></span>
+        <span>📱 長輩防詐隨身守護頁 <small style="font-size:0.72rem;opacity:0.9;">v1.0.91</small></span>
         <span id="mobile-sync-badge" class="status-pill pill-warn">尚未同步</span>
       </h1>
       <div class="sub">
@@ -313,6 +313,15 @@
         <div class="m-row" style="margin-top:6px;">
           <button type="button" id="btn-mobile-lock-friend-on" class="ok" style="flex:1;padding:6px 8px;font-size:0.76rem;" onclick="setMobileLockAddFriend(true)">🔒 開啟鎖定加好友</button>
           <button type="button" id="btn-mobile-lock-friend-off" class="secondary" style="flex:1;padding:6px 8px;font-size:0.76rem;" onclick="setMobileLockAddFriend(false)">🔓 暫時允許加好友</button>
+        </div>
+      </div>
+
+      <div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#fff1f2;border:1px solid #fda4af;">
+        <div style="font-weight:800;font-size:0.8rem;color:#881337;">🛑 通話中網銀／遠端／OTP 熔斷：<span id="mobile-call-breaker-badge" style="color:#be123c;">🛑 已開啟（保護網銀與驗證碼）</span></div>
+        <div style="font-size:0.72rem;color:#9f1239;margin-top:2px;">非白名單通話／語音進行中開啟網銀、AnyDesk／TeamViewer、螢幕分享或收到簡訊 OTP 驗證碼時，立即強制熔斷攔截並通知家人。</div>
+        <div class="m-row" style="margin-top:6px;">
+          <button type="button" id="btn-mobile-call-breaker-on" class="ok" style="flex:1;padding:6px 8px;font-size:0.76rem;" onclick="setMobileCallCircuitBreaker(true)">🛑 開啟通話熔斷</button>
+          <button type="button" id="btn-mobile-call-breaker-off" class="secondary" style="flex:1;padding:6px 8px;font-size:0.76rem;" onclick="setMobileCallCircuitBreaker(false)">🔓 暫時關閉</button>
         </div>
       </div>
 
@@ -734,6 +743,7 @@
     config_source: 'mobile_guardian_web',
     protection_mode: 'ACTIVE_BLOCKING',
     lock_add_friend_enabled: true,
+    call_circuit_breaker_enabled: true,
     guardian_family_phone: '',
     guardian_family_label: '兒女',
     whitelist_contacts: [],
@@ -2057,6 +2067,9 @@
     const lockFriendVal = newer.lock_add_friend_enabled !== undefined
       ? Boolean(newer.lock_add_friend_enabled)
       : (older.lock_add_friend_enabled !== undefined ? Boolean(older.lock_add_friend_enabled) : true);
+    const callBreakerVal = newer.call_circuit_breaker_enabled !== undefined
+      ? Boolean(newer.call_circuit_breaker_enabled)
+      : (older.call_circuit_breaker_enabled !== undefined ? Boolean(older.call_circuit_breaker_enabled) : true);
     const famPhoneVal = newer.guardian_family_phone !== undefined
       ? String(newer.guardian_family_phone || '').trim()
       : String(older.guardian_family_phone || '').trim();
@@ -2593,6 +2606,7 @@
       config_revision_ms: Math.max(localRev, remoteRev),
       protection_mode: newer.protection_mode || 'ACTIVE_BLOCKING',
       lock_add_friend_enabled: lockFriendVal,
+      call_circuit_breaker_enabled: callBreakerVal,
       guardian_family_phone: famPhoneVal,
       guardian_family_label: famLabelVal,
       whitelist_contacts: mergedWlContacts,
@@ -2687,6 +2701,7 @@
                   config_revision_ms: c.config_revision_ms || 0,
                   protection_mode: c.protection_mode || 'ACTIVE_BLOCKING',
                   lock_add_friend_enabled: c.lock_add_friend_enabled !== undefined ? Boolean(c.lock_add_friend_enabled) : true,
+                  call_circuit_breaker_enabled: c.call_circuit_breaker_enabled !== undefined ? Boolean(c.call_circuit_breaker_enabled) : true,
                   guardian_family_phone: String(c.guardian_family_phone || '').trim(),
                   guardian_family_label: String(c.guardian_family_label || '兒女').trim() || '兒女',
                   whitelist_contacts: c.whitelist_contacts || [],
@@ -3137,6 +3152,32 @@
       enabled
         ? '🔒 已開啟「鎖定 LINE 禁止主動新增好友」並推送雲端！媽媽點擊加好友或掃描 QR Code 將立即彈出 PIN 碼鎖。'
         : '🔓 已暫時允許媽媽新增 LINE 好友並同步雲端。',
+      true
+    );
+  }
+
+  async function setMobileCallCircuitBreaker(enabled) {
+    const cfg = getActiveConfigInputs();
+    if (window.location.protocol.startsWith('http') && !cfg.customApiUrl) {
+      try {
+        await fetch('/api/config/call-circuit-breaker', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: Boolean(enabled) }),
+        });
+      } catch (e) {}
+    }
+    mobileState.call_circuit_breaker_enabled = Boolean(enabled);
+    mobileState.config_revision_ms = Math.max(Date.now(), Number(mobileState.config_revision_ms || 0) + 1);
+    mobileState.config_source = 'mobile_guardian_web';
+    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    renderMobileState();
+    if (!(await syncMobileCloudNow(true))) return;
+    setBanner(
+      'mobile-sync-output',
+      enabled
+        ? '🛑 已開啟「通話中網銀／遠端控制／螢幕分享／OTP 熔斷保護」並推送雲端！'
+        : '🔓 已暫時關閉通話中網銀／OTP 熔斷保護並同步雲端。',
       true
     );
   }
@@ -3846,6 +3887,7 @@
       '📊【長輩 LINE 防詐守護・每週守護摘要】',
       `• 防護模式：${mobileState.protection_mode || 'ACTIVE_BLOCKING'}`,
       `• 鎖定禁止新增好友：${mobileState.lock_add_friend_enabled !== false ? '已開啟🔒' : '暫時開放🔓'}`,
+      `• 通話中網銀／OTP熔斷：${mobileState.call_circuit_breaker_enabled !== false ? '已開啟🛑' : '暫時關閉🔓'}`,
       `• 最後心跳：${hbTxt}`,
       `• 累計攔截與警報：${alerts.length} 則`,
       `• 白名單聯絡人：${(mobileState.whitelist_contacts || []).length} 位｜群組：${(mobileState.whitelist_groups || []).length} 個｜誤報豁免：${(mobileState.false_positive_exclusions || []).length} 個`,
@@ -4079,6 +4121,18 @@
     }
     if ($id('btn-mobile-lock-friend-off')) {
       $id('btn-mobile-lock-friend-off').className = 'btn ' + (!lockFriendEnabled ? 'btn-primary' : 'btn-secondary');
+    }
+    const callBreakerEnabled = mobileState.call_circuit_breaker_enabled !== false;
+    const callBreakerBadge = $id('mobile-call-breaker-badge');
+    if (callBreakerBadge) {
+      callBreakerBadge.textContent = callBreakerEnabled ? '🛑 已開啟（保護網銀與驗證碼）' : '🔓 已暫時關閉熔斷保護';
+      callBreakerBadge.style.color = callBreakerEnabled ? '#be123c' : '#64748b';
+    }
+    if ($id('btn-mobile-call-breaker-on')) {
+      $id('btn-mobile-call-breaker-on').className = 'btn ' + (callBreakerEnabled ? 'btn-primary' : 'btn-secondary');
+    }
+    if ($id('btn-mobile-call-breaker-off')) {
+      $id('btn-mobile-call-breaker-off').className = 'btn ' + (!callBreakerEnabled ? 'btn-primary' : 'btn-secondary');
     }
     const famLabelEl = $id('mobile-family-label-input');
     if (famLabelEl && document.activeElement !== famLabelEl) {
