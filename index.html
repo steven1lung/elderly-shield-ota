@@ -215,11 +215,11 @@
     }
   </style>
 </head>
-<body id="mobileGuardianPage" data-page="mobile-guardian" data-release-version="v1.0.91" data-version-code="93">
+<body id="mobileGuardianPage" data-page="mobile-guardian" data-release-version="v1.0.93" data-version-code="95">
   <div class="m-wrap">
     <header class="m-header">
       <h1>
-        <span>📱 長輩防詐隨身守護頁 <small style="font-size:0.72rem;opacity:0.9;">v1.0.91</small></span>
+        <span>📱 長輩防詐隨身守護頁 <small style="font-size:0.72rem;opacity:0.9;">v1.0.93</small></span>
         <span id="mobile-sync-badge" class="status-pill pill-warn">尚未同步</span>
       </h1>
       <div class="sub">
@@ -322,6 +322,21 @@
         <div class="m-row" style="margin-top:6px;">
           <button type="button" id="btn-mobile-call-breaker-on" class="ok" style="flex:1;padding:6px 8px;font-size:0.76rem;" onclick="setMobileCallCircuitBreaker(true)">🛑 開啟通話熔斷</button>
           <button type="button" id="btn-mobile-call-breaker-off" class="secondary" style="flex:1;padding:6px 8px;font-size:0.76rem;" onclick="setMobileCallCircuitBreaker(false)">🔓 暫時關閉</button>
+        </div>
+      </div>
+
+      <div id="mobile-browser-domain-shield-section" style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#eef2ff;border:1px solid #a5b4fc;">
+        <div style="font-weight:800;font-size:0.8rem;color:#312e81;">🌐 瀏覽器／LINE 網頁釣魚與 165 假網址／APK 攔截：<span id="mobile-domain-shield-badge" style="color:#4338ca;">🌐 已開啟（內建 165 庫）</span></div>
+        <div style="font-size:0.72rem;color:#3730a3;margin-top:2px;">保護媽媽使用 Chrome／Samsung／Edge／Firefox 與 LINE 內建瀏覽器，即時攔截 165 假網址與不明 .apk 安裝檔（官方網站零誤判）。</div>
+        <div class="m-row" style="margin-top:6px;">
+          <button type="button" id="btn-mobile-domain-shield-on" class="ok" style="flex:1;padding:6px 8px;font-size:0.76rem;" onclick="setMobileBrowserDomainShield(true)">🌐 開啟網頁防護</button>
+          <button type="button" id="btn-mobile-domain-shield-off" class="secondary" style="flex:1;padding:6px 8px;font-size:0.76rem;" onclick="setMobileBrowserDomainShield(false)">🔓 暫時關閉</button>
+          <button type="button" id="btn-mobile-sync-165" class="ok" style="flex:1;padding:6px 8px;font-size:0.76rem;" onclick="syncMobile165Domains()">🔄 同步 165 網址</button>
+        </div>
+        <div id="mobile-blocked-domains-chips" class="chip-wrap" style="margin-top:6px;"></div>
+        <div class="m-row" style="margin-top:6px;">
+          <input type="text" id="mobile-add-blocked-domain-input" placeholder="新增封鎖詐騙網址，例：tw-water-pay.xyz" style="flex:1;" />
+          <button type="button" id="btn-mobile-add-blocked-domain" class="danger" onclick="addMobileBlockedDomain()">➕ 封鎖網址</button>
         </div>
       </div>
 
@@ -744,6 +759,7 @@
     protection_mode: 'ACTIVE_BLOCKING',
     lock_add_friend_enabled: true,
     call_circuit_breaker_enabled: true,
+    browser_domain_shield_enabled: true,
     guardian_family_phone: '',
     guardian_family_label: '兒女',
     whitelist_contacts: [],
@@ -752,6 +768,7 @@
     whitelist_removed_at: {},
     false_positive_exclusions: [],
     blocked_scam_contacts: [],
+    blocked_scam_domains: [],
     line_quota_tracker: {
       month_key: '',
       used_count: 0,
@@ -1953,6 +1970,17 @@
           ]
     );
 
+    const hasNewerDomains = Array.isArray(newer.blocked_scam_domains);
+    const domainSet = new Set(
+      ((remoteRev !== localRev && hasNewerDomains)
+        ? newer.blocked_scam_domains
+        : [
+            ...(Array.isArray(older.blocked_scam_domains) ? older.blocked_scam_domains : []),
+            ...(Array.isArray(newer.blocked_scam_domains) ? newer.blocked_scam_domains : []),
+          ]
+      ).map(d => normalizeMobileDomain(d)).filter(d => Boolean(d) && !isMobileTrustedOfficialDomain(d))
+    );
+
     const CONFIRMED_SCAM_NEVER_EXCLUDE_CONTACTS = new Set([
       '大城林代書', '玉芳', 'Jenny lin 麗君', 'Sahily秀蘭', "許'R 、督導",
       '𝓑𝓮𝓵𝓵𝓪芳妤🍀', '陳世杰（阿虎）', '周曜宸', 'Alex Ke', 'NONAME',
@@ -2070,6 +2098,9 @@
     const callBreakerVal = newer.call_circuit_breaker_enabled !== undefined
       ? Boolean(newer.call_circuit_breaker_enabled)
       : (older.call_circuit_breaker_enabled !== undefined ? Boolean(older.call_circuit_breaker_enabled) : true);
+    const browserDomainVal = newer.browser_domain_shield_enabled !== undefined
+      ? Boolean(newer.browser_domain_shield_enabled)
+      : (older.browser_domain_shield_enabled !== undefined ? Boolean(older.browser_domain_shield_enabled) : true);
     const famPhoneVal = newer.guardian_family_phone !== undefined
       ? String(newer.guardian_family_phone || '').trim()
       : String(older.guardian_family_phone || '').trim();
@@ -2607,6 +2638,7 @@
       protection_mode: newer.protection_mode || 'ACTIVE_BLOCKING',
       lock_add_friend_enabled: lockFriendVal,
       call_circuit_breaker_enabled: callBreakerVal,
+      browser_domain_shield_enabled: browserDomainVal,
       guardian_family_phone: famPhoneVal,
       guardian_family_label: famLabelVal,
       whitelist_contacts: mergedWlContacts,
@@ -2615,6 +2647,7 @@
       whitelist_removed_at: mergedWlRemovedAt,
       false_positive_exclusions: mergedFpList,
       blocked_scam_contacts: Array.from(blockedSet),
+      blocked_scam_domains: Array.from(domainSet).slice(0, 300),
       line_quota_tracker: mergedQuota,
       guardian_pin: (() => {
         const DEFAULT_SALT = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
@@ -2702,6 +2735,7 @@
                   protection_mode: c.protection_mode || 'ACTIVE_BLOCKING',
                   lock_add_friend_enabled: c.lock_add_friend_enabled !== undefined ? Boolean(c.lock_add_friend_enabled) : true,
                   call_circuit_breaker_enabled: c.call_circuit_breaker_enabled !== undefined ? Boolean(c.call_circuit_breaker_enabled) : true,
+                  browser_domain_shield_enabled: c.browser_domain_shield_enabled !== undefined ? Boolean(c.browser_domain_shield_enabled) : true,
                   guardian_family_phone: String(c.guardian_family_phone || '').trim(),
                   guardian_family_label: String(c.guardian_family_label || '兒女').trim() || '兒女',
                   whitelist_contacts: c.whitelist_contacts || [],
@@ -2710,6 +2744,7 @@
                   whitelist_removed_at: c.whitelist_removed_at || {},
                   false_positive_exclusions: c.false_positive_exclusions || [],
                   blocked_scam_contacts: c.blocked_scam_contacts || [],
+                  blocked_scam_domains: c.blocked_scam_domains || [],
                   line_quota_tracker: c.line_quota_tracker || {},
                   guardian_pin: c.guardian_pin || {},
                   heartbeat: serverHb,
@@ -3156,6 +3191,39 @@
     );
   }
 
+  const MOBILE_TRUSTED_OFFICIAL_DOMAINS = [
+    'gov.tw', 'taipower.com.tw', 'water.gov.tw', 'fetc.net.tw', 'bot.com.tw',
+    'firstbank.com.tw', 'cathaybk.com.tw', 'ctbcbank.com', 'megabank.com.tw',
+    'esunbank.com', 'esunbank.com.tw', 'taishinbank.com.tw', 'richart.tw',
+    'fubon.com', 'taipeifubon.com.tw', 'linebank.com.tw', 'landbank.com.tw',
+    '7-11.com.tw', 'famiport.com.tw', 'family.com.tw', 'shopee.tw',
+    'momoshop.com.tw', 'pchome.com.tw', 'line.me', 'lin.ee', 'naver.jp',
+    'google.com', 'google.com.tw', 'youtube.com', 'udn.com', 'ltn.com.tw', 'cna.com.tw',
+  ];
+  const MOBILE_BUILTIN_165_DOMAINS = [
+    'tw-water.xyz', 'tw-water-pay.xyz', 'taipower-bill.vip', 'fetc-gov.top',
+    'etc-tw-pay.xyz', 'mvdis-gov.vip', 'post-gov-tw.xyz', 'nhi-gov.top',
+    'myship-711.top', '711-myship.cc', 'myship711-tw.xyz', 'famiport-verify.top',
+    'shopee-tw-verify.xyz', 'digitalpay-vip.cc', 'tw-stock-vip.xyz', 'usdt-tw-pro.top',
+  ];
+  function normalizeMobileDomain(raw) {
+    let s = String(raw || '').trim().toLowerCase().split('#')[0].split('?')[0];
+    if (!s) return '';
+    const idx = s.indexOf('://');
+    if (idx >= 0) s = s.slice(idx + 3);
+    const atIdx = s.indexOf('@');
+    if (atIdx >= 0 && (s.indexOf('/') < 0 || atIdx < s.indexOf('/'))) s = s.slice(atIdx + 1);
+    s = s.split('/')[0].split(':')[0].replace(/\.+$/, '');
+    if (s.startsWith('www.')) s = s.slice(4);
+    if (!s || s.length > 253) return '';
+    return /^[a-z0-9.-]+\.[a-z0-9]{2,}$/.test(s) ? s : '';
+  }
+  function isMobileTrustedOfficialDomain(raw) {
+    const host = normalizeMobileDomain(raw);
+    if (!host) return false;
+    return MOBILE_TRUSTED_OFFICIAL_DOMAINS.some(t => host === t || host.endsWith('.' + t));
+  }
+
   async function setMobileCallCircuitBreaker(enabled) {
     const cfg = getActiveConfigInputs();
     if (window.location.protocol.startsWith('http') && !cfg.customApiUrl) {
@@ -3180,6 +3248,127 @@
         : '🔓 已暫時關閉通話中網銀／OTP 熔斷保護並同步雲端。',
       true
     );
+  }
+
+  async function setMobileBrowserDomainShield(enabled) {
+    const cfg = getActiveConfigInputs();
+    if (window.location.protocol.startsWith('http') && !cfg.customApiUrl) {
+      try {
+        await fetch('/api/config/browser-domain-shield', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: Boolean(enabled) }),
+        });
+      } catch (e) {}
+    }
+    mobileState.browser_domain_shield_enabled = Boolean(enabled);
+    mobileState.config_revision_ms = Math.max(Date.now(), Number(mobileState.config_revision_ms || 0) + 1);
+    mobileState.config_source = 'mobile_guardian_web';
+    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    renderMobileState();
+    if (!(await syncMobileCloudNow(true))) return;
+    setBanner(
+      'mobile-sync-output',
+      enabled
+        ? '🌐 已開啟「瀏覽器／LINE 網頁釣魚與 165 假網址／APK 攔截」並推送雲端！'
+        : '🔓 已暫時關閉瀏覽器與 LINE 網頁 165 假網址攔截。',
+      true
+    );
+  }
+
+  async function addMobileBlockedDomain() {
+    const input = $id('mobile-add-blocked-domain-input');
+    const rawDomain = (input && input.value ? input.value : '').trim();
+    if (!rawDomain) return;
+    const norm = normalizeMobileDomain(rawDomain);
+    if (!norm) {
+      setBanner('mobile-sync-output', '❌ 請輸入有效的網址或網域（例如：tw-water-pay.xyz）', false);
+      return;
+    }
+    if (isMobileTrustedOfficialDomain(norm)) {
+      setBanner('mobile-sync-output', `🛡️ 「${norm}」為台灣官方或常見信任網站，系統已自動保護不會封鎖！`, false);
+      return;
+    }
+    const cfg = getActiveConfigInputs();
+    if (window.location.protocol.startsWith('http') && !cfg.customApiUrl) {
+      try {
+        const resp = await fetch('/api/config/blocked-domains', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'add', domain: norm }),
+        });
+        const resJson = await resp.json();
+        if (!resJson.ok) {
+          setBanner('mobile-sync-output', '🛡️ ' + (resJson.error || '無法封鎖該網址'), false);
+          return;
+        }
+        if (resJson.config) mobileState = mergeEnvelopeState(mobileState, resJson.config);
+      } catch (e) {}
+    }
+    const cur = Array.isArray(mobileState.blocked_scam_domains) ? [...mobileState.blocked_scam_domains] : [];
+    if (!cur.includes(norm)) cur.push(norm);
+    mobileState.blocked_scam_domains = cur.slice(0, 300);
+    mobileState.config_revision_ms = Math.max(Date.now(), Number(mobileState.config_revision_ms || 0) + 1);
+    mobileState.config_source = 'mobile_guardian_web';
+    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    if (input) input.value = '';
+    renderMobileState();
+    if (!(await syncMobileCloudNow(true))) return;
+    setBanner('mobile-sync-output', `🌐 已將「${norm}」加入 165 詐騙封鎖網址清單並推送雲端！`, true);
+  }
+
+  async function removeMobileBlockedDomain(domain) {
+    const norm = normalizeMobileDomain(domain);
+    if (!norm) return;
+    const cfg = getActiveConfigInputs();
+    if (window.location.protocol.startsWith('http') && !cfg.customApiUrl) {
+      try {
+        const resp = await fetch('/api/config/blocked-domains', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'remove', domain: norm }),
+        });
+        const resJson = await resp.json();
+        if (resJson.ok && resJson.config) mobileState = mergeEnvelopeState(mobileState, resJson.config);
+      } catch (e) {}
+    }
+    mobileState.blocked_scam_domains = (mobileState.blocked_scam_domains || []).filter(d => normalizeMobileDomain(d) !== norm);
+    mobileState.config_revision_ms = Math.max(Date.now(), Number(mobileState.config_revision_ms || 0) + 1);
+    mobileState.config_source = 'mobile_guardian_web';
+    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    renderMobileState();
+    if (!(await syncMobileCloudNow(true))) return;
+    setBanner('mobile-sync-output', `🗑️ 已從封鎖網址清單移除「${norm}」並同步雲端！`, true);
+  }
+
+  async function syncMobile165Domains() {
+    const cfg = getActiveConfigInputs();
+    let feedDomains = [...MOBILE_BUILTIN_165_DOMAINS];
+    if (window.location.protocol.startsWith('http') && !cfg.customApiUrl) {
+      try {
+        const resp = await fetch('/api/config/blocked-domains', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'sync_165' }),
+        });
+        const resJson = await resp.json();
+        if (resJson.ok && Array.isArray(resJson.blocked_scam_domains)) {
+          feedDomains = resJson.blocked_scam_domains;
+          if (resJson.config) mobileState = mergeEnvelopeState(mobileState, resJson.config);
+        }
+      } catch (e) {}
+    }
+    const merged = Array.from(new Set([
+      ...(mobileState.blocked_scam_domains || []).map(d => normalizeMobileDomain(d)),
+      ...feedDomains.map(d => normalizeMobileDomain(d)),
+    ].filter(d => Boolean(d) && !isMobileTrustedOfficialDomain(d)))).slice(0, 300);
+    mobileState.blocked_scam_domains = merged;
+    mobileState.config_revision_ms = Math.max(Date.now(), Number(mobileState.config_revision_ms || 0) + 1);
+    mobileState.config_source = 'mobile_guardian_web';
+    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    renderMobileState();
+    if (!(await syncMobileCloudNow(true))) return;
+    setBanner('mobile-sync-output', `✅ 已同步內政部 165 最新詐騙網址庫（共 ${merged.length} 筆）並推送至媽媽手機！`, true);
   }
 
   async function saveMobileFamilyPhone() {
@@ -3888,6 +4077,7 @@
       `• 防護模式：${mobileState.protection_mode || 'ACTIVE_BLOCKING'}`,
       `• 鎖定禁止新增好友：${mobileState.lock_add_friend_enabled !== false ? '已開啟🔒' : '暫時開放🔓'}`,
       `• 通話中網銀／OTP熔斷：${mobileState.call_circuit_breaker_enabled !== false ? '已開啟🛑' : '暫時關閉🔓'}`,
+      `• 165網頁與APK攔截：${mobileState.browser_domain_shield_enabled !== false ? '已開啟🌐' : '暫時關閉🔓'}（封鎖網域 ${(mobileState.blocked_scam_domains || []).length} 筆）`,
       `• 最後心跳：${hbTxt}`,
       `• 累計攔截與警報：${alerts.length} 則`,
       `• 白名單聯絡人：${(mobileState.whitelist_contacts || []).length} 位｜群組：${(mobileState.whitelist_groups || []).length} 個｜誤報豁免：${(mobileState.false_positive_exclusions || []).length} 個`,
@@ -4134,6 +4324,21 @@
     if ($id('btn-mobile-call-breaker-off')) {
       $id('btn-mobile-call-breaker-off').className = 'btn ' + (!callBreakerEnabled ? 'btn-primary' : 'btn-secondary');
     }
+    const domainShieldEnabled = mobileState.browser_domain_shield_enabled !== false;
+    const domainShieldBadge = $id('mobile-domain-shield-badge');
+    const domainCount = (mobileState.blocked_scam_domains || []).length;
+    if (domainShieldBadge) {
+      domainShieldBadge.textContent = domainShieldEnabled
+        ? `🌐 已開啟（封鎖網域 ${domainCount} 筆＋內建 165 庫）`
+        : '🔓 已暫時關閉網頁防護';
+      domainShieldBadge.style.color = domainShieldEnabled ? '#4338ca' : '#64748b';
+    }
+    if ($id('btn-mobile-domain-shield-on')) {
+      $id('btn-mobile-domain-shield-on').className = 'btn ' + (domainShieldEnabled ? 'btn-primary' : 'btn-secondary');
+    }
+    if ($id('btn-mobile-domain-shield-off')) {
+      $id('btn-mobile-domain-shield-off').className = 'btn ' + (!domainShieldEnabled ? 'btn-primary' : 'btn-secondary');
+    }
     const famLabelEl = $id('mobile-family-label-input');
     if (famLabelEl && document.activeElement !== famLabelEl) {
       famLabelEl.value = String(mobileState.guardian_family_label || '兒女').trim() || '兒女';
@@ -4145,7 +4350,7 @@
     function buildMobileSimulatedLineChatElement(item, digestChatsMap, maxTurns = 8) {
       if (!item || typeof item !== 'object') return null;
       const roomName = String(item.chat_title || item.sender_name || '').trim();
-      if (!roomName || roomName.startsWith('手機系統') || roomName.startsWith('🔒') || roomName.startsWith('⚠️') || roomName.startsWith('🚨 家屬遠端') || roomName.startsWith('⏰') || roomName.startsWith('🤖') || roomName.startsWith('🧠') || roomName.startsWith('📋') || roomName.startsWith('📊')) return null;
+      if (!roomName || roomName.startsWith('手機系統') || roomName.startsWith('🔒') || roomName.startsWith('🌐') || roomName.startsWith('⚠️') || roomName.startsWith('🚨 家屬遠端') || roomName.startsWith('⏰') || roomName.startsWith('🤖') || roomName.startsWith('🧠') || roomName.startsWith('📋') || roomName.startsWith('📊')) return null;
       const digRoom = (digestChatsMap && digestChatsMap[roomName]) || {};
       const combinedRawTurns = []
         .concat(Array.isArray(digRoom.dialogue_turns) ? digRoom.dialogue_turns : [])
@@ -4654,6 +4859,29 @@
       }
     }
 
+    const blockedDomEl = $id('mobile-blocked-domains-chips');
+    if (blockedDomEl) {
+      const blockedDomains = mobileState.blocked_scam_domains || [];
+      blockedDomEl.innerHTML = '';
+      if (!blockedDomains.length) {
+        blockedDomEl.innerHTML = '<span style="font-size:0.75rem;color:#6366f1;">（已內建 165 核心詐騙網域；點「🔄 同步 165 網址」或手動新增）</span>';
+      } else {
+        for (const dom of blockedDomains) {
+          const chip = document.createElement('span');
+          chip.className = 'm-chip';
+          chip.style.cssText = 'background:#e0e7ff;border-color:#6366f1;color:#312e81;';
+          chip.textContent = '🌐 ' + dom + ' ';
+          const xBtn = document.createElement('button');
+          xBtn.type = 'button';
+          xBtn.textContent = '×';
+          xBtn.style.cssText = 'background:transparent;border:none;color:#312e81;font-weight:800;cursor:pointer;padding:0 2px;';
+          xBtn.onclick = () => removeMobileBlockedDomain(dom);
+          chip.appendChild(xBtn);
+          blockedDomEl.appendChild(chip);
+        }
+      }
+    }
+
     // Alerts
     const alerts = Array.isArray(mobileState.alert_history) ? mobileState.alert_history : [];
     const timelineBlockedNorms = new Set((mobileState.blocked_scam_contacts || []).map(x => stripWhitelistSuffix(String(x || '').trim()).toLowerCase()).filter(Boolean));
@@ -4687,10 +4915,11 @@
             isPermissionRevokedTamperAlert(a) ||
             isOverlayPinTamperAlert(a) ||
             isOverdueLockAlert(a) ||
-            ['HEARTBEAT', 'HEARTBEAT_TIMEOUT', 'TAMPER_ALERT', 'FACTORY_RESET_ATTEMPT', 'SYSTEM_TAMPER_AND_FACTORY_RESET', 'PERMISSION_REVOKED_DETECTED', 'PERMISSION_REVOKED_EMERGENCY_LOCK', 'OVERLAY_PIN_TAMPER', 'DAILY_CHECK_OVERDUE_LOCK', 'LINE_ADD_FRIEND_LOCKED', 'OVERLAY_PIN_UNLOCK_SUCCESS', 'MANUAL_SAFE_CHECK', 'TEST_ALERT', 'TEST_VERIFICATION_ALERT', 'DAILY_GUARDIAN_REPORT', 'WEEKLY_SUMMARY_REPORT'].includes(aTypeUpper) ||
+            ['HEARTBEAT', 'HEARTBEAT_TIMEOUT', 'TAMPER_ALERT', 'FACTORY_RESET_ATTEMPT', 'SYSTEM_TAMPER_AND_FACTORY_RESET', 'PERMISSION_REVOKED_DETECTED', 'PERMISSION_REVOKED_EMERGENCY_LOCK', 'OVERLAY_PIN_TAMPER', 'DAILY_CHECK_OVERDUE_LOCK', 'LINE_ADD_FRIEND_LOCKED', 'BROWSER_PHISHING_BLOCKED', 'OVERLAY_PIN_UNLOCK_SUCCESS', 'MANUAL_SAFE_CHECK', 'TEST_ALERT', 'TEST_VERIFICATION_ALERT', 'DAILY_GUARDIAN_REPORT', 'WEEKLY_SUMMARY_REPORT'].includes(aTypeUpper) ||
             chatTitle.startsWith('手機系統') ||
             chatTitle.startsWith('🚨 家屬遠端') ||
             chatTitle.startsWith('🔒') ||
+            chatTitle.startsWith('🌐') ||
             chatTitle.startsWith('🤖') ||
             chatTitle.startsWith('🧠') ||
             chatTitle.startsWith('⚠️') ||
