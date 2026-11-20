@@ -2,496 +2,897 @@
 <html lang="zh-Hant-TW">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta http-equiv="Content-Security-Policy" content="script-src 'sha256-/X3ueGF7OnLFzjbUQGf0125KnL99vP4Zig1YYYxGUZU='; object-src 'none'; base-uri 'none'; require-trusted-types-for 'script'; trusted-types 'none';" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="theme-color" content="#9a3412" />
+  <meta name="theme-color" content="#9a3412" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#431407" media="(prefers-color-scheme: dark)" />
   <title>📱 長輩防詐隨身守護頁 — 手機遠端中控台</title>
   <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      padding: 10px 12px 32px;
-      background: linear-gradient(180deg, #fff7ed 0%, #fef3c7 100%);
-      color: #1f2937;
-      font-family: -apple-system, BlinkMacSystemFont, "Noto Sans CJK TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
-      min-height: 100vh;
+    @layer reset, base, theme, components, utilities;
+
+    @layer reset {
+      *, *::before, *::after { box-sizing: border-box; }
     }
-    .m-wrap { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
-    .m-header {
-      background: linear-gradient(135deg, #9a3412 0%, #c2410c 100%);
-      color: #ffffff;
-      border-radius: 16px;
-      padding: 12px 14px;
-      box-shadow: 0 4px 14px rgba(154, 52, 18, 0.22);
+
+    @layer theme {
+      :root {
+        color-scheme: light dark;
+        --target-size: 28px;
+        --bg-page: linear-gradient(180deg, #fff7ed 0%, #fef3c7 100%);
+        --surface-card: #ffffff;
+        --surface-sub: #fffbeb;
+        --surface-muted: #f8fafc;
+        --surface-blue: #eff6ff;
+        --surface-amber: #fef3c7;
+        --surface-rose: #fff1f2;
+        --surface-indigo: #eef2ff;
+        --surface-yellow: #fefce8;
+        --surface-green: #f0fdf4;
+        --surface-code: #f1f5f9;
+        --surface-input: #ffffff;
+        --text-primary: #1f2937;
+        --text-secondary: #475569;
+        --text-brand: #9a3412;
+        --text-accent-blue: #1e40af;
+        --text-accent-green: #15803d;
+        --text-accent-red: #991b1b;
+        --text-accent-indigo: #312e81;
+        --text-accent-amber: #78350f;
+        --border-card: #fed7aa;
+        --border-stat: #fde68a;
+        --border-input: #c2410c;
+        --border-muted: #cbd5e1;
+        --btn-primary: #c2410c;
+        --btn-ok: #15803d;
+        --btn-secondary: #475569;
+        --btn-danger: #b91c1c;
+        --btn-blue: #1d4ed8;
+        --btn-line: #047857;
+        --focus-ring: #2563eb;
+      }
+
+      @media (pointer: coarse) {
+        :root {
+          --target-size: 44px;
+        }
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg-page: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+          --surface-card: #1e293b;
+          --surface-sub: #172554;
+          --surface-muted: #0f172a;
+          --surface-blue: #172554;
+          --surface-amber: #451a03;
+          --surface-rose: #450a0a;
+          --surface-indigo: #1e1b4b;
+          --surface-yellow: #422006;
+          --surface-green: #052e16;
+          --surface-code: #334155;
+          --surface-input: #0f172a;
+          --text-primary: #f8fafc;
+          --text-secondary: #cbd5e1;
+          --text-brand: #fdba74;
+          --text-accent-blue: #93c5fd;
+          --text-accent-green: #86efac;
+          --text-accent-red: #fca5a5;
+          --text-accent-indigo: #c7d2fe;
+          --text-accent-amber: #fde68a;
+          --border-card: #475569;
+          --border-stat: #334155;
+          --border-input: #64748b;
+          --border-muted: #475569;
+          --focus-ring: #93c5fd;
+        }
+      }
     }
-    .m-header h1 { margin: 0; font-size: 1.15rem; font-weight: 900; display: flex; align-items: center; justify-content: space-between; }
-    .m-header .sub { font-size: 0.76rem; color: #ffedd5; margin-top: 4px; line-height: 1.35; }
-    .m-nav { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
-    .m-nav a {
-      text-decoration: none;
-      font-size: 0.74rem;
-      font-weight: 800;
-      padding: 4px 10px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.18);
-      color: #ffffff;
-      border: 1px solid rgba(255,255,255,0.35);
+
+    @layer base {
+      body {
+        margin: 0;
+        padding: calc(10px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(32px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
+        background: var(--bg-page);
+        color: var(--text-primary);
+        font-family: -apple-system, BlinkMacSystemFont, "Noto Sans CJK TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+        min-height: 100dvh;
+        line-height: 1.45;
+      }
+      code {
+        background: var(--surface-code);
+        color: var(--text-primary);
+        padding: 1px 5px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      details summary {
+        cursor: pointer;
+        font-weight: 800;
+        font-size: 0.84rem;
+        color: var(--text-brand);
+        min-height: var(--target-size);
+        display: flex;
+        align-items: center;
+      }
+      input[type="text"],
+      input[type="password"],
+      input[type="tel"],
+      input[type="email"],
+      input[type="url"],
+      textarea {
+        width: 100%;
+        padding: 9px 11px;
+        border-radius: 10px;
+        border: 1px solid var(--border-input);
+        font-size: max(1rem, 1em);
+        min-height: 44px;
+        background: var(--surface-input);
+        color: var(--text-primary);
+      }
+      button {
+        background: var(--btn-primary);
+        color: #ffffff;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        padding: 8px 12px;
+        min-height: var(--target-size);
+        min-width: var(--target-size);
+        font-weight: 800;
+        font-size: 0.84rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+      }
+      :focus-visible {
+        outline: 3px solid var(--focus-ring);
+        outline-offset: 2px;
+      }
+      progress {
+        width: 100%;
+        height: 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border-muted);
+        background: #dbeafe;
+        overflow: hidden;
+      }
+      progress::-webkit-progress-bar { background: #dbeafe; border-radius: 999px; }
+      progress::-webkit-progress-value { background: #1d4ed8; border-radius: 999px; }
+      progress::-moz-progress-bar { background: #1d4ed8; border-radius: 999px; }
+
+      meter {
+        width: 100%;
+        height: 10px;
+        border-radius: 999px;
+        display: block;
+      }
+      meter::-webkit-meter-bar { background: #e2e8f0; border-radius: 999px; border: 1px solid var(--border-muted); }
+      meter::-webkit-meter-optimum-value { background: #1d4ed8; border-radius: 999px; }
+      meter::-webkit-meter-suboptimum-value { background: #b45309; border-radius: 999px; }
+      meter::-webkit-meter-even-less-good-value { background: #b91c1c; border-radius: 999px; }
+      meter:-moz-meter-optimum::-moz-meter-bar { background: #1d4ed8; }
+      meter:-moz-meter-sub-optimum::-moz-meter-bar { background: #b45309; }
+      meter:-moz-meter-sub-sub-optimum::-moz-meter-bar { background: #b91c1c; }
     }
-    .m-nav a.active {
-      background: #ffffff;
-      color: #9a3412;
-      border-color: #ffffff;
+
+    @layer components {
+      .m-wrap {
+        max-width: 600px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        container-type: inline-size;
+        container-name: mobile-shell;
+      }
+      .m-main {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .m-header {
+        background: linear-gradient(135deg, #9a3412 0%, #c2410c 100%);
+        color: #ffffff;
+        border-radius: 16px;
+        padding: 12px 14px;
+        box-shadow: 0 4px 14px rgba(154, 52, 18, 0.22);
+      }
+      .m-header h1 {
+        margin: 0;
+        font-size: 1.15rem;
+        font-weight: 900;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .m-ver-tag { font-size: 0.75rem; opacity: 0.95; }
+      .m-header .sub { font-size: 0.78rem; color: #ffedd5; margin-top: 4px; line-height: 1.4; }
+      .m-header code { background: rgba(15, 23, 42, 0.45); color: #ffffff; }
+      .m-nav { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+      .m-nav a {
+        text-decoration: none;
+        font-size: 0.76rem;
+        font-weight: 800;
+        padding: 5px 11px;
+        min-height: var(--target-size);
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.16);
+        color: #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.45);
+      }
+      .m-nav a.active {
+        background: #ffffff;
+        color: #9a3412;
+        border-color: #ffffff;
+      }
+      .m-card {
+        background: var(--surface-card);
+        border-radius: 16px;
+        border: 1px solid var(--border-card);
+        padding: 12px 14px;
+        box-shadow: 0 2px 8px rgba(120, 53, 15, 0.08);
+      }
+      .m-card.emergency-card {
+        background: var(--surface-rose);
+        border: 2px solid #dc2626;
+      }
+      .m-card.m-card-green {
+        border-color: #16a34a;
+        background: var(--surface-green);
+      }
+      .m-card h2 {
+        margin: 0 0 8px 0;
+        font-size: 0.98rem;
+        color: var(--text-brand);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .m-card.emergency-card h2 { color: var(--text-accent-red); }
+      .m-header-note { font-size: 0.74rem; font-weight: 700; }
+      .m-emergency-desc { font-size: 0.8rem; color: var(--text-accent-red); line-height: 1.45; }
+      .m-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+      .m-label { display: block; font-size: 0.78rem; font-weight: 800; color: var(--text-brand); margin-top: 6px; }
+      .m-hint { font-size: 0.75rem; color: var(--text-secondary); margin-top: 3px; line-height: 1.4; }
+      .m-empty { color: var(--text-secondary); font-size: 0.8rem; text-align: center; padding: 12px; }
+      .m-empty-chip { color: var(--text-secondary); font-size: 0.76rem; }
+      .m-box {
+        margin-top: 8px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        font-size: 0.78rem;
+        border: 1px solid var(--border-muted);
+      }
+      .m-box-amber { background: var(--surface-amber); border-color: #d97706; }
+      .m-box-amber .m-box-title { color: var(--text-accent-amber); }
+      .m-box-blue { background: var(--surface-blue); border-color: #60a5fa; }
+      .m-box-blue .m-box-title { color: var(--text-accent-blue); }
+      .m-box-rose { background: var(--surface-rose); border-color: #f43f5e; }
+      .m-box-rose .m-box-title { color: var(--text-accent-red); }
+      .m-box-indigo { background: var(--surface-indigo); border-color: #6366f1; }
+      .m-box-indigo .m-box-title { color: var(--text-accent-indigo); }
+      .m-box-yellow { background: var(--surface-yellow); border-color: #ca8a04; }
+      .m-box-yellow .m-box-title { color: var(--text-accent-amber); }
+      .m-box-title { font-weight: 800; font-size: 0.82rem; }
+      .m-divider-top { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border-card); }
+      .m-section-gap { margin-top: 10px; }
+      .m-section-title { font-weight: 800; font-size: 0.82rem; color: var(--text-brand); }
+      .m-section-title.danger-ink { color: var(--text-accent-red); }
+      .pw-wrap { position: relative; flex: 1; display: flex; align-items: center; gap: 4px; width: 100%; }
+      .pw-wrap input { flex: 1; }
+      .pw-toggle { background: var(--btn-secondary); color: #ffffff; padding: 6px 10px; font-size: 0.74rem; flex-shrink: 0; }
+
+      button.ok { background: var(--btn-ok); color: #ffffff; }
+      button.secondary, button.btn-secondary { background: var(--btn-secondary); color: #ffffff; }
+      button.danger, button.btn-danger { background: var(--btn-danger); color: #ffffff; }
+      button.btn-primary { background: var(--btn-primary); color: #ffffff; box-shadow: 0 0 0 2px #fdba74; }
+      button.m-btn-blue { background: var(--btn-blue); color: #ffffff; }
+      button.m-btn-line { background: var(--btn-line); color: #ffffff; }
+      button.m-btn-sm { padding: 5px 9px; font-size: 0.75rem; }
+      button.m-btn-xs { padding: 4px 8px; font-size: 0.73rem; }
+      button.m-btn-flex { flex: 1; }
+      button.m-btn-full { width: 100%; margin-top: 8px; padding: 12px; font-size: 0.95rem; border-radius: 12px; }
+      button.emergency-btn {
+        width: 100%;
+        background: linear-gradient(180deg, #b91c1c 0%, #7f1d1d 100%);
+        color: #fef08a;
+        border: 2px solid #fca5a5;
+        padding: 12px 14px;
+        font-size: 0.95rem;
+        font-weight: 900;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(185, 28, 28, 0.35);
+        margin-top: 8px;
+      }
+
+      .status-pill {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 800;
+      }
+      .pill-active { background: #b91c1c; color: #ffffff; }
+      .pill-stealth { background: #1d4ed8; color: #ffffff; }
+      .pill-ok { background: #dcfce7; color: #14532d; }
+      .pill-warn { background: #fef3c7; color: #78350f; }
+
+      .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      @container mobile-shell (max-width: 380px) {
+        .grid-2 { grid-template-columns: 1fr; }
+      }
+      .stat-box {
+        background: var(--surface-sub);
+        border: 1px solid var(--border-stat);
+        border-radius: 10px;
+        padding: 8px 10px;
+        font-size: 0.78rem;
+      }
+      .stat-label { color: var(--text-accent-amber); font-weight: 700; font-size: 0.74rem; }
+      .stat-val { font-weight: 800; margin-top: 3px; font-size: 0.85rem; }
+
+      .chip-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+      .m-chip {
+        background: #ecfccb;
+        border: 1px solid #84cc16;
+        color: #365314;
+        border-radius: 999px;
+        padding: 3px 8px 3px 10px;
+        font-size: 0.76rem;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .m-chip.group { background: #e0f2fe; border-color: #38bdf8; color: #075985; }
+      .m-chip.fp { background: #fef3c7; border-color: #d97706; color: #78350f; }
+      .m-chip.blocked { background: #fee2e2; border-color: #dc2626; color: #7f1d1d; }
+      .m-chip.domain { background: #e0e7ff; border-color: #4f46e5; color: #312e81; }
+      .m-chip button {
+        background: transparent;
+        color: #7f1d1d;
+        padding: 0 4px;
+        font-size: 0.92rem;
+        min-height: var(--target-size);
+        min-width: var(--target-size);
+      }
+
+      .alert-item {
+        border-left: 5px solid #d97706;
+        background: var(--surface-card);
+        color: var(--text-primary);
+        border-radius: 10px;
+        padding: 8px 10px;
+        margin-bottom: 8px;
+        font-size: 0.8rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        content-visibility: auto;
+        contain-intrinsic-block-size: auto 10rem;
+      }
+      .alert-item.CRITICAL { border-left-color: #b91c1c; background: var(--surface-rose); }
+      .alert-item.HIGH { border-left-color: #c2410c; }
+      .result-banner {
+        margin-top: 8px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        font-size: 0.78rem;
+        background: var(--surface-muted);
+        color: var(--text-primary);
+        border: 1px solid var(--border-muted);
+        white-space: pre-wrap;
+      }
+      .result-banner.ok { background: var(--surface-green); border-color: #4ade80; color: var(--text-accent-green); font-weight: 700; }
+      .result-banner.err { background: var(--surface-rose); border-color: #f87171; color: var(--text-accent-red); font-weight: 700; }
+
+      .radar-box {
+        font-size: 0.75rem;
+        background: var(--surface-card);
+        border: 1px solid var(--border-muted);
+        border-radius: 8px;
+        padding: 8px 10px;
+        margin-top: 6px;
+        color: var(--text-primary);
+      }
+      .audit-box {
+        font-size: 0.76rem;
+        color: var(--text-primary);
+        margin-top: 6px;
+        white-space: pre-line;
+      }
+      .line-web-banner {
+        margin-top: 6px;
+        padding: 6px 8px;
+        border-radius: 8px;
+        background: #dcfce7;
+        border: 1px solid #4ade80;
+        font-size: 0.76rem;
+        font-weight: 800;
+        color: #14532d;
+      }
+      .line-web-screenshot {
+        max-width: 100%;
+        height: auto;
+        max-height: 280px;
+        border-radius: 8px;
+        border: 1px solid #4ade80;
+        cursor: crosshair;
+        display: none;
+      }
+      .share-line-pill {
+        background: #047857;
+        color: #ffffff;
+        text-decoration: none;
+        padding: 5px 10px;
+        border-radius: 8px;
+        font-weight: 800;
+        font-size: 0.74rem;
+        min-height: var(--target-size);
+        display: inline-flex;
+        align-items: center;
+      }
+
+      .sim-line-chatroom-card {
+        margin-top: 6px;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 1px solid #475569;
+        background: #7494C0;
+        box-shadow: 0 1px 4px rgba(15, 23, 42, 0.14);
+      }
+      .sim-line-chatroom-header {
+        background: #273246;
+        color: #ffffff;
+        padding: 6px 9px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.74rem;
+        font-weight: 800;
+      }
+      .sim-line-chatroom-header.intercept-hdr { background: #4C1D95; }
+      .sim-line-chatroom-body {
+        background: #7494C0;
+        padding: 7px 9px;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .sim-line-bubble.peer {
+        background: #FFFFFF;
+        color: #111111;
+        border-radius: 10px;
+        padding: 5px 8px;
+        max-width: 85%;
+        font-size: 0.74rem;
+        line-height: 1.35;
+        word-break: break-word;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+      }
+      .sim-line-bubble.mom {
+        background: #95EC69;
+        color: #111111;
+        border-radius: 10px;
+        padding: 5px 8px;
+        max-width: 85%;
+        font-size: 0.74rem;
+        line-height: 1.35;
+        word-break: break-word;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+      }
+      .sim-intercept-notice {
+        background: #E2E8F0;
+        color: #1E293B;
+        border-radius: 10px;
+        padding: 9px 11px;
+        font-size: 0.75rem;
+        line-height: 1.45;
+      }
+
+      dialog#confirmActionDialog {
+        max-width: min(92vw, 420px);
+        border: 2px solid var(--btn-danger);
+        border-radius: 16px;
+        padding: 16px;
+        background: var(--surface-card);
+        color: var(--text-primary);
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+      }
+      dialog#confirmActionDialog::backdrop {
+        background: rgba(15, 23, 42, 0.65);
+        backdrop-filter: blur(2px);
+      }
     }
-    .m-card {
-      background: #ffffff;
-      border-radius: 16px;
-      border: 1px solid #fed7aa;
-      padding: 12px 14px;
-      box-shadow: 0 2px 8px rgba(120, 53, 15, 0.08);
-    }
-    .m-card.emergency-card {
-      background: linear-gradient(180deg, #fff1f2 0%, #ffe4e6 100%);
-      border: 2px solid #dc2626;
-    }
-    .m-card h2 {
-      margin: 0 0 8px 0;
-      font-size: 0.96rem;
-      color: #9a3412;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-    }
-    .m-card.emergency-card h2 { color: #991b1b; }
-    .m-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
-    input[type="text"], input[type="password"], textarea {
-      width: 100%;
-      padding: 8px 10px;
-      border-radius: 10px;
-      border: 1px solid #fdba74;
-      font-size: 0.84rem;
-      background: #ffffff;
-      color: #1f2937;
-    }
-    button {
-      background: #f97316;
-      color: #ffffff;
-      border: none;
-      border-radius: 10px;
-      padding: 8px 12px;
-      font-weight: 800;
-      font-size: 0.82rem;
-      cursor: pointer;
-    }
-    button.ok { background: #16a34a; }
-    button.secondary, button.btn-secondary { background: #64748b; }
-    button.danger, button.btn-danger { background: #dc2626; }
-    button.btn-primary { background: #ea580c; box-shadow: 0 0 0 2px #fdba74; }
-    button.emergency-btn {
-      width: 100%;
-      background: linear-gradient(180deg, #dc2626 0%, #991b1b 100%);
-      color: #fef08a;
-      border: 2px solid #fca5a5;
-      padding: 12px 14px;
-      font-size: 0.95rem;
-      font-weight: 900;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35);
-      margin-top: 8px;
-    }
-    .status-pill {
-      display: inline-block;
-      padding: 3px 10px;
-      border-radius: 999px;
-      font-size: 0.78rem;
-      font-weight: 800;
-    }
-    .pill-active { background: #dc2626; color: #ffffff; }
-    .pill-stealth { background: #2563eb; color: #ffffff; }
-    .pill-ok { background: #dcfce7; color: #166534; }
-    .pill-warn { background: #fef3c7; color: #92400e; }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .stat-box {
-      background: #fffbeb;
-      border: 1px solid #fde68a;
-      border-radius: 10px;
-      padding: 8px 10px;
-      font-size: 0.78rem;
-    }
-    .stat-label { color: #92400e; font-weight: 700; font-size: 0.72rem; }
-    .stat-val { font-weight: 800; margin-top: 3px; font-size: 0.85rem; }
-    .chip-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-    .m-chip {
-      background: #ecfccb;
-      border: 1px solid #a3e635;
-      color: #365314;
-      border-radius: 999px;
-      padding: 3px 8px 3px 10px;
-      font-size: 0.76rem;
-      font-weight: 700;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .m-chip.group { background: #e0f2fe; border-color: #7dd3fc; color: #075985; }
-    .m-chip button {
-      background: transparent;
-      color: #991b1b;
-      padding: 0 4px;
-      font-size: 0.88rem;
-    }
-    .alert-item {
-      border-left: 5px solid #f59e0b;
-      background: #fffdf7;
-      border-radius: 10px;
-      padding: 8px 10px;
-      margin-bottom: 8px;
-      font-size: 0.78rem;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-    .alert-item.CRITICAL { border-left-color: #dc2626; background: #fff5f5; }
-    .alert-item.HIGH { border-left-color: #ea580c; }
-    .result-banner {
-      margin-top: 8px;
-      padding: 8px 10px;
-      border-radius: 10px;
-      font-size: 0.78rem;
-      background: #f8fafc;
-      border: 1px solid #cbd5e1;
-      white-space: pre-wrap;
-    }
-    .result-banner.ok { background: #f0fdf4; border-color: #86efac; color: #166534; font-weight: 700; }
-    .result-banner.err { background: #fef2f2; border-color: #fca5a5; color: #991b1b; font-weight: 700; }
-    details summary { cursor: pointer; font-weight: 800; font-size: 0.82rem; color: #7c2d12; }
-    code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 0.85em; }
-    .sim-line-chatroom-card {
-      margin-top: 6px;
-      border-radius: 10px;
-      overflow: hidden;
-      border: 1px solid #475569;
-      background: #7494C0;
-      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.14);
-    }
-    .sim-line-chatroom-header {
-      background: #273246;
-      color: #ffffff;
-      padding: 5px 9px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.72rem;
-      font-weight: 800;
-    }
-    .sim-line-chatroom-body {
-      background: #7494C0;
-      padding: 7px 9px;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-    }
-    .sim-line-bubble.peer {
-      background: #FFFFFF;
-      color: #111111;
-      border-radius: 10px;
-      padding: 5px 8px;
-      max-width: 85%;
-      font-size: 0.72rem;
-      line-height: 1.35;
-      word-break: break-word;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-    }
-    .sim-line-bubble.mom {
-      background: #95EC69;
-      color: #111111;
-      border-radius: 10px;
-      padding: 5px 8px;
-      max-width: 85%;
-      font-size: 0.72rem;
-      line-height: 1.35;
-      word-break: break-word;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+
+    @layer utilities {
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+        border: 0;
+      }
+      .skip-link:focus {
+        position: fixed;
+        top: 8px;
+        left: 8px;
+        z-index: 9999;
+        width: auto;
+        height: auto;
+        margin: 0;
+        overflow: visible;
+        clip-path: none;
+        background: #1d4ed8;
+        color: #ffffff;
+        padding: 10px 14px;
+        border-radius: 10px;
+        font-weight: 800;
+        text-decoration: none;
+      }
+      .is-hidden { display: none; }
+      .flex-1 { flex: 1; }
+      .flex-14 { flex: 1.4; min-width: 120px; }
+      .min-w-100 { min-width: 100px; }
+      .center-block { margin-top: 6px; text-align: center; }
+
+      @media (forced-colors: active) {
+        .m-card, button, .status-pill, .m-chip, .m-nav a, dialog#confirmActionDialog {
+          border: 2px solid ButtonText;
+        }
+        :focus-visible {
+          outline: 3px solid Highlight;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
+      }
     }
   </style>
 </head>
-<body id="mobileGuardianPage" data-page="mobile-guardian" data-release-version="v1.0.96" data-version-code="98">
+<body id="mobileGuardianPage" data-page="mobile-guardian" data-release-version="v1.1.0" data-version-code="99">
+  <a href="#main-content" class="skip-link visually-hidden">跳至主要內容</a>
   <div class="m-wrap">
     <header class="m-header">
       <h1>
-        <span>📱 長輩防詐隨身守護頁 <small style="font-size:0.72rem;opacity:0.9;">v1.0.96</small></span>
-        <span id="mobile-sync-badge" class="status-pill pill-warn">尚未同步</span>
+        <span>📱 長輩防詐隨身守護頁 <small class="m-ver-tag">v1.1.0</small></span>
+        <span id="mobile-sync-badge" class="status-pill pill-warn" role="status" aria-live="polite">尚未同步</span>
       </h1>
-      <div class="sub">
+      <p class="sub">
         出門在外直接用自己的手機查看媽媽手機心跳、切換模式、增刪白名單，或一鍵「🚨 遠端緊急鎖定媽媽手機」。所有資料以 <code>token_envelope</code> 端到端加密。
-      </div>
-      <div class="m-nav">
+      </p>
+      <nav class="m-nav" aria-label="主要導覽">
         <a href="/" id="mobileNavDesktop">🏠 電腦版守護首頁 (/)</a>
         <a href="/mobile" id="mobileNavMobile" class="active" aria-current="page">📱 手機隨身守護頁 (/mobile)</a>
         <a href="/simulator" id="mobileNavSimulator">🧪 雙機防詐模擬器 (/simulator)</a>
-      </div>
+      </nav>
     </header>
 
-    <!-- Card 1: Emergency Remote Lock -->
-    <section class="m-card emergency-card" id="mobileEmergencyLockCard">
-      <h2>🚨 遠端緊急鎖定媽媽手機 <span style="font-size:0.72rem;font-weight:700;">鎖定中每 15 秒極速同步・重開機仍持續鎖住</span></h2>
-      <div style="font-size:0.78rem;color:#7f1d1d;line-height:1.4;">
-        發現媽媽正在與可疑對象通話或準備匯款時，按下此鈕會立即透過雲端下達緊急鎖定指令：媽媽手機會強制切回「🔴 嚴格白名單攔截模式」、收回維護期、在所有畫面（包含主畫面桌面與重開機後）持續顯示滿版紅底阻斷警告，且<strong>隱藏返回桌面按鈕</strong>，直到家屬按下方「🔓 遠端解除鎖定媽媽手機」或輸入 6 位數家長密碼！
-      </div>
-      <div class="m-row">
-        <input type="text" id="mobile-remote-lock-reason" value="家屬從手機遠端緊急鎖定：請先暫停操作並接聽家人電話！" placeholder="顯示在媽媽手機上的緊急鎖定原因" />
-      </div>
-      <button type="button" id="btn-mobile-remote-lock" class="emergency-btn" onclick="triggerMobileRemoteLock()">
-        🚨 立即遠端鎖定媽媽手機（連主畫面與重開機持續鎖定）
-      </button>
-      <button type="button" id="btn-mobile-remote-unlock" class="ok" style="width:100%;margin-top:8px;padding:12px;font-size:0.95rem;border-radius:12px;" onclick="triggerMobileRemoteUnlock()">
-        🔓 遠端解除鎖定媽媽手機
-      </button>
-      <div id="mobile-remote-lock-status" class="result-banner">目前無待執行的遠端鎖定指令。</div>
-    </section>
+    <main id="main-content" class="m-main" tabindex="-1">
+      <!-- Card 1: Emergency Remote Lock -->
+      <section class="m-card emergency-card" id="mobileEmergencyLockCard" aria-labelledby="hdr-emergency-lock">
+        <h2 id="hdr-emergency-lock">🚨 遠端緊急鎖定媽媽手機 <span class="m-header-note">鎖定中每 15 秒極速同步・重開機仍持續鎖住</span></h2>
+        <div class="m-emergency-desc">
+          發現媽媽正在與可疑對象通話或準備匯款時，按下此鈕會立即透過雲端下達緊急鎖定指令：媽媽手機會強制切回「🔴 嚴格白名單攔截模式」、收回維護期、在所有畫面（包含主畫面桌面與重開機後）持續顯示滿版紅底阻斷警告，且<strong>隱藏返回桌面按鈕</strong>，直到家屬按下方「🔓 遠端解除鎖定媽媽手機」或輸入 6 位數家長密碼！
+        </div>
+        <form data-form-action="triggerMobileRemoteLock">
+          <label for="mobile-remote-lock-reason" class="m-label">緊急鎖定原因文字</label>
+          <div class="m-row">
+            <input type="text" id="mobile-remote-lock-reason" value="家屬從手機遠端緊急鎖定：請先暫停操作並接聽家人電話！" placeholder="顯示在媽媽手機上的緊急鎖定原因" enterkeyhint="done" />
+          </div>
+          <button type="button" id="btn-mobile-remote-lock" class="emergency-btn" data-action="triggerMobileRemoteLock" data-confirm="確定立即遠端鎖定媽媽手機嗎？鎖定後媽媽手機會全畫面紅底鎖定且無法按返回桌面，直到您遠端解除鎖定或輸入 6 位數家長密碼。">
+            🚨 立即遠端鎖定媽媽手機（連主畫面與重開機持續鎖定）
+          </button>
+        </form>
+        <button type="button" id="btn-mobile-remote-unlock" class="ok m-btn-full" data-action="triggerMobileRemoteUnlock">
+          🔓 遠端解除鎖定媽媽手機
+        </button>
+        <div id="mobile-remote-lock-status" class="result-banner" role="status" aria-live="polite">目前無待執行的遠端鎖定指令。</div>
+      </section>
 
-    <!-- Card 2: Hero Status & One-Tap Sync -->
-    <section class="m-card" id="mobileHeroCard">
-      <h2>
-        <span>① 媽媽手機即時守護狀態</span>
-        <button type="button" id="btn-mobile-sync-now" class="ok" onclick="syncMobileCloudNow(false)">🔄 立即雲端同步</button>
-      </h2>
-      <div class="grid-2">
-        <div class="stat-box">
-          <div class="stat-label">目前防護模式</div>
-          <div class="stat-val"><span id="mobile-mode-badge" class="status-pill pill-active">🔴 嚴格攔截 (ACTIVE_BLOCKING)</span></div>
+      <!-- Card 2: Hero Status & One-Tap Sync -->
+      <section class="m-card" id="mobileHeroCard" aria-labelledby="hdr-mobile-hero">
+        <h2 id="hdr-mobile-hero">
+          <span>① 媽媽手機即時守護狀態</span>
+          <button type="button" id="btn-mobile-sync-now" class="ok" data-action="syncMobileCloudNow" data-arg="false">🔄 立即雲端同步</button>
+        </h2>
+        <div class="grid-2">
+          <div class="stat-box">
+            <div class="stat-label">目前防護模式</div>
+            <div class="stat-val"><span id="mobile-mode-badge" class="status-pill pill-active">🔴 嚴格攔截 (ACTIVE_BLOCKING)</span></div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">⏱️ 最後心跳與電量</div>
+            <div class="stat-val" id="mobile-heartbeat-text">尚未同步</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">無障礙／通知欄／懸浮窗／裝置管理員防刪</div>
+            <div class="stat-val" id="mobile-permissions-text">⚪ 待同步</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">雲端設定修訂號</div>
+            <div class="stat-val" id="mobile-revision-text">0</div>
+          </div>
         </div>
-        <div class="stat-box">
-          <div class="stat-label">⏱️ 最後心跳與電量</div>
-          <div class="stat-val" id="mobile-heartbeat-text">尚未同步</div>
+        <div id="mobile-daily-self-check-box" class="m-box m-box-amber">
+          <div class="m-box-title">🩺 今日媽媽主動 AI 檢查狀態：<span id="mobile-daily-check-badge">⏳ 今日尚未檢查（21:00 截止）</span></div>
+          <div id="mobile-daily-check-summary" class="m-hint">媽媽每天需主動開啟防護盾點「🧠 每日 AI 安全檢查」，若 21:00 仍未檢查將自動鎖定 LINE 直到完成檢查或家屬遠端解鎖。</div>
+          <div class="m-row">
+            <button type="button" id="btn-mobile-daily-check-req-on" class="ok m-btn-xs" data-action="setMobileDailyCheckRequired" data-arg="true" aria-pressed="true">▶️ 開啟每日必檢(逾期鎖LINE)</button>
+            <button type="button" id="btn-mobile-daily-check-req-off" class="secondary m-btn-xs" data-action="setMobileDailyCheckRequired" data-arg="false" aria-pressed="false">⏸️ 暫停要求每日必檢</button>
+            <button type="button" id="btn-mobile-daily-check-unlock" class="ok m-btn-xs" data-action="triggerMobileRemoteUnlock">🔓 遠端解除逾期鎖定</button>
+          </div>
         </div>
-        <div class="stat-box">
-          <div class="stat-label">無障礙／通知欄／懸浮窗／裝置管理員防刪</div>
-          <div class="stat-val" id="mobile-permissions-text">⚪ 待同步</div>
+        <div id="mobile-quota-box" class="m-box m-box-blue">
+          <div id="mobile-quota-text" class="m-box-title">🟢 本月 LINE 免費推播額度：0 / 200 則（剩餘 200 則）</div>
+          <div class="m-row">
+            <meter id="mobile-quota-bar" min="0" max="200" low="120" high="160" optimum="0" value="0">0 / 200 則</meter>
+          </div>
+          <div class="m-row">
+            <button type="button" id="btn-mobile-policy-all" class="ok m-btn-xs" data-action="setMobilePushPolicy" data-arg="ALL_ALERTS" aria-pressed="true">全部推播</button>
+            <button type="button" id="btn-mobile-policy-high" class="secondary m-btn-xs" data-action="setMobilePushPolicy" data-arg="HIGH_CRITICAL_ONLY" aria-pressed="false">省額度(僅HIGH/CRITICAL)</button>
+            <button type="button" id="btn-mobile-policy-zero" class="secondary m-btn-xs" data-action="setMobilePushPolicy" data-arg="ZERO_PUSH_REPLY_ONLY" aria-pressed="false">0額度(免費Reply+轉傳)</button>
+            <button type="button" id="btn-mobile-policy-daily" class="secondary m-btn-xs" data-action="setMobilePushPolicy" data-arg="DAILY_REPORT_ONLY" aria-pressed="false">🌙 每日21:00日報</button>
+            <button type="button" id="btn-mobile-weekly-summary" class="m-btn-line m-btn-xs" data-action="generateMobileWeeklySummary">📊 每週摘要(0額度轉傳)</button>
+          </div>
         </div>
-        <div class="stat-box">
-          <div class="stat-label">雲端設定修訂號</div>
-          <div class="stat-val" id="mobile-revision-text">0</div>
-        </div>
-      </div>
-      <div id="mobile-daily-self-check-box" style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#fffbeb;border:1px solid #fcd34d;font-size:0.75rem;">
-        <div style="font-weight:800;color:#92400e;">🩺 今日媽媽主動 AI 檢查狀態：<span id="mobile-daily-check-badge">⏳ 今日尚未檢查（21:00 截止）</span></div>
-        <div id="mobile-daily-check-summary" style="color:#78350f;margin-top:3px;">媽媽每天需主動開啟防護盾點「🧠 每日 AI 安全檢查」，若 21:00 仍未檢查將自動鎖定 LINE 直到完成檢查或家屬遠端解鎖。</div>
-        <div class="m-row" style="margin-top:6px;">
-          <button type="button" id="btn-mobile-daily-check-req-on" class="ok" style="padding:4px 8px;font-size:0.72rem;" onclick="setMobileDailyCheckRequired(true)">▶️ 開啟每日必檢(逾期鎖LINE)</button>
-          <button type="button" id="btn-mobile-daily-check-req-off" class="secondary" style="padding:4px 8px;font-size:0.72rem;" onclick="setMobileDailyCheckRequired(false)">⏸️ 暫停要求每日必檢</button>
-          <button type="button" id="btn-mobile-daily-check-unlock" class="ok" style="padding:4px 8px;font-size:0.72rem;" onclick="triggerMobileRemoteUnlock()">🔓 遠端解除逾期鎖定</button>
-        </div>
-      </div>
-      <div id="mobile-quota-box" style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#eff6ff;border:1px solid #93c5fd;font-size:0.75rem;">
-        <div id="mobile-quota-text" style="font-weight:800;color:#1e40af;">🟢 本月 LINE 免費推播額度：0 / 200 則（剩餘 200 則）</div>
-        <div style="margin-top:4px;height:6px;background:#e2e8f0;border-radius:999px;overflow:hidden;">
-          <div id="mobile-quota-bar" style="width:2%;height:100%;background:#2563eb;"></div>
-        </div>
-        <div class="m-row" style="margin-top:6px;">
-          <button type="button" id="btn-mobile-policy-all" class="ok" style="padding:4px 8px;font-size:0.72rem;" onclick="setMobilePushPolicy('ALL_ALERTS')">全部推播</button>
-          <button type="button" id="btn-mobile-policy-high" class="secondary" style="padding:4px 8px;font-size:0.72rem;" onclick="setMobilePushPolicy('HIGH_CRITICAL_ONLY')">省額度(僅HIGH/CRITICAL)</button>
-          <button type="button" id="btn-mobile-policy-zero" class="secondary" style="padding:4px 8px;font-size:0.72rem;" onclick="setMobilePushPolicy('ZERO_PUSH_REPLY_ONLY')">0額度(免費Reply+轉傳)</button>
-          <button type="button" id="btn-mobile-policy-daily" class="secondary" style="padding:4px 8px;font-size:0.72rem;" onclick="setMobilePushPolicy('DAILY_REPORT_ONLY')">🌙 每日21:00日報</button>
-          <button type="button" id="btn-mobile-weekly-summary" style="padding:4px 8px;font-size:0.72rem;background:#06c755;" onclick="generateMobileWeeklySummary()">📊 每週摘要(0額度轉傳)</button>
-        </div>
-      </div>
-      <div id="mobile-sync-output" class="result-banner">設定好下方配對金鑰後，點「🔄 立即雲端同步」即可拉取媽媽手機最新狀態。</div>
-    </section>
+        <div id="mobile-sync-output" class="result-banner" role="status" aria-live="polite">設定好下方配對金鑰後，點「🔄 立即雲端同步」即可拉取媽媽手機最新狀態。</div>
+      </section>
 
-    <!-- Card 3: Mode Switch, Whitelist & Remote PIN -->
-    <section class="m-card" id="mobileControlsCard">
-      <h2>② 遠端切換模式・白名單・修改家長 PIN</h2>
-      <div class="m-row">
-        <button type="button" id="btn-mobile-mode-active" class="danger" style="flex:1;" onclick="setMobileMode('ACTIVE_BLOCKING')">🔴 嚴格攔截模式</button>
-        <button type="button" id="btn-mobile-mode-stealth" class="secondary" style="flex:1;" onclick="setMobileMode('STEALTH_MONITORING')">🕵️ 隱密監測模式</button>
-      </div>
-
-      <div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#fef3c7;border:1px solid #f59e0b;">
-        <div style="font-weight:800;font-size:0.8rem;color:#92400e;">🔒 鎖定 LINE 禁止主動新增好友：<span id="mobile-lock-friend-badge" style="color:#b45309;">🔒 已鎖定（禁止主動加好友／掃 QR）</span></div>
-        <div style="font-size:0.72rem;color:#78350f;margin-top:2px;">開啟後，媽媽點開 LINE「加入好友／掃描行動條碼／搜尋 ID／點擊陌生人加入好友」將立即彈出家長 PIN 碼鎖並退回上一頁。</div>
-        <div class="m-row" style="margin-top:6px;">
-          <button type="button" id="btn-mobile-lock-friend-on" class="ok" style="flex:1;padding:6px 8px;font-size:0.76rem;" onclick="setMobileLockAddFriend(true)">🔒 開啟鎖定加好友</button>
-          <button type="button" id="btn-mobile-lock-friend-off" class="secondary" style="flex:1;padding:6px 8px;font-size:0.76rem;" onclick="setMobileLockAddFriend(false)">🔓 暫時允許加好友</button>
+      <!-- Card 3: Mode Switch, Whitelist & Remote PIN -->
+      <section class="m-card" id="mobileControlsCard" aria-labelledby="hdr-mobile-controls">
+        <h2 id="hdr-mobile-controls">② 遠端切換模式・白名單・修改家長 PIN</h2>
+        <div class="m-row">
+          <button type="button" id="btn-mobile-mode-active" class="danger m-btn-flex" data-action="setMobileMode" data-arg="ACTIVE_BLOCKING" aria-pressed="true">🔴 嚴格攔截模式</button>
+          <button type="button" id="btn-mobile-mode-stealth" class="secondary m-btn-flex" data-action="setMobileMode" data-arg="STEALTH_MONITORING" aria-pressed="false">🕵️ 隱密監測模式</button>
         </div>
-      </div>
 
-      <div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#fff1f2;border:1px solid #fda4af;">
-        <div style="font-weight:800;font-size:0.8rem;color:#881337;">🛑 通話中網銀／遠端／OTP 熔斷：<span id="mobile-call-breaker-badge" style="color:#be123c;">🛑 已開啟（保護網銀與驗證碼）</span></div>
-        <div style="font-size:0.72rem;color:#9f1239;margin-top:2px;">非白名單通話／語音進行中開啟網銀、AnyDesk／TeamViewer、螢幕分享或收到簡訊 OTP 驗證碼時，立即強制熔斷攔截並通知家人。</div>
-        <div class="m-row" style="margin-top:6px;">
-          <button type="button" id="btn-mobile-call-breaker-on" class="ok" style="flex:1;padding:6px 8px;font-size:0.76rem;" onclick="setMobileCallCircuitBreaker(true)">🛑 開啟通話熔斷</button>
-          <button type="button" id="btn-mobile-call-breaker-off" class="secondary" style="flex:1;padding:6px 8px;font-size:0.76rem;" onclick="setMobileCallCircuitBreaker(false)">🔓 暫時關閉</button>
+        <div class="m-box m-box-amber">
+          <div class="m-box-title">🔒 鎖定 LINE 禁止主動新增好友：<span id="mobile-lock-friend-badge">🔒 已鎖定（禁止主動加好友／掃 QR）</span></div>
+          <div class="m-hint">開啟後，媽媽點開 LINE「加入好友／掃描行動條碼／搜尋 ID／點擊陌生人加入好友」將立即彈出家長 PIN 碼鎖並退回上一頁。</div>
+          <div class="m-row">
+            <button type="button" id="btn-mobile-lock-friend-on" class="ok m-btn-flex m-btn-sm" data-action="setMobileLockAddFriend" data-arg="true" aria-pressed="true">🔒 開啟鎖定加好友</button>
+            <button type="button" id="btn-mobile-lock-friend-off" class="secondary m-btn-flex m-btn-sm" data-action="setMobileLockAddFriend" data-arg="false" aria-pressed="false">🔓 暫時允許加好友</button>
+          </div>
         </div>
-      </div>
 
-      <div id="mobile-browser-domain-shield-section" style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#eef2ff;border:1px solid #a5b4fc;">
-        <div style="font-weight:800;font-size:0.8rem;color:#312e81;">🌐 瀏覽器／LINE 網頁釣魚與 165 假網址／APK 攔截：<span id="mobile-domain-shield-badge" style="color:#4338ca;">🌐 已開啟（內建 165 庫）</span></div>
-        <div style="font-size:0.72rem;color:#3730a3;margin-top:2px;">保護媽媽使用 Chrome／Samsung／Edge／Firefox 與 LINE 內建瀏覽器，即時攔截 165 假網址與不明 .apk 安裝檔（官方網站零誤判）。</div>
-        <div class="m-row" style="margin-top:6px;">
-          <button type="button" id="btn-mobile-domain-shield-on" class="ok" style="flex:1;padding:6px 8px;font-size:0.76rem;" onclick="setMobileBrowserDomainShield(true)">🌐 開啟網頁防護</button>
-          <button type="button" id="btn-mobile-domain-shield-off" class="secondary" style="flex:1;padding:6px 8px;font-size:0.76rem;" onclick="setMobileBrowserDomainShield(false)">🔓 暫時關閉</button>
-          <button type="button" id="btn-mobile-sync-165" class="ok" style="flex:1;padding:6px 8px;font-size:0.76rem;" onclick="syncMobile165Domains()">🔄 同步 165 網址</button>
+        <div class="m-box m-box-rose">
+          <div class="m-box-title">🛑 通話中網銀／遠端／OTP 熔斷：<span id="mobile-call-breaker-badge">🛑 已開啟（保護網銀與驗證碼）</span></div>
+          <div class="m-hint">非白名單通話／語音進行中開啟網銀、AnyDesk／TeamViewer、螢幕分享或收到簡訊 OTP 驗證碼時，立即強制熔斷攔截並通知家人。</div>
+          <div class="m-row">
+            <button type="button" id="btn-mobile-call-breaker-on" class="ok m-btn-flex m-btn-sm" data-action="setMobileCallCircuitBreaker" data-arg="true" aria-pressed="true">🛑 開啟通話熔斷</button>
+            <button type="button" id="btn-mobile-call-breaker-off" class="secondary m-btn-flex m-btn-sm" data-action="setMobileCallCircuitBreaker" data-arg="false" aria-pressed="false">🔓 暫時關閉</button>
+          </div>
         </div>
-        <div id="mobile-blocked-domains-chips" class="chip-wrap" style="margin-top:6px;"></div>
-        <div class="m-row" style="margin-top:6px;">
-          <input type="text" id="mobile-add-blocked-domain-input" placeholder="新增封鎖詐騙網址，例：tw-water-pay.xyz" style="flex:1;" />
-          <button type="button" id="btn-mobile-add-blocked-domain" class="danger" onclick="addMobileBlockedDomain()">➕ 封鎖網址</button>
-        </div>
-      </div>
 
-      <div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#fefce8;border:1px solid #fde047;">
-        <div style="font-weight:800;font-size:0.8rem;color:#854d0e;">📞 攔截畫面一鍵撥打家人電話設定</div>
-        <div style="font-size:0.72rem;color:#713f12;margin-top:2px;">媽媽看到防詐遮罩時點黃色按鈕即可一鍵撥打確認（未填則預設撥打 165）。</div>
-        <div class="m-row" style="margin-top:6px;">
-          <input type="text" id="mobile-family-label-input" placeholder="稱呼，例：兒子 小明" style="flex:1;min-width:100px;" />
-          <input type="tel" id="mobile-family-phone-input" placeholder="家人電話，例：0912345678" style="flex:1.4;min-width:120px;" />
+        <div id="mobile-browser-domain-shield-section" class="m-box m-box-indigo">
+          <div class="m-box-title">🌐 瀏覽器／LINE 網頁釣魚與 165 假網址／APK 攔截：<span id="mobile-domain-shield-badge">🌐 已開啟（內建 165 庫）</span></div>
+          <div class="m-hint">保護媽媽使用 Chrome／Samsung／Edge／Firefox 與 LINE 內建瀏覽器，即時攔截 165 假網址與不明 .apk 安裝檔（官方網站零誤判）。</div>
+          <div class="m-row">
+            <button type="button" id="btn-mobile-domain-shield-on" class="ok m-btn-flex m-btn-sm" data-action="setMobileBrowserDomainShield" data-arg="true" aria-pressed="true">🌐 開啟網頁防護</button>
+            <button type="button" id="btn-mobile-domain-shield-off" class="secondary m-btn-flex m-btn-sm" data-action="setMobileBrowserDomainShield" data-arg="false" aria-pressed="false">🔓 暫時關閉</button>
+            <button type="button" id="btn-mobile-sync-165" class="ok m-btn-flex m-btn-sm" data-action="syncMobile165Domains">🔄 同步 165 網址</button>
+          </div>
+          <div id="mobile-blocked-domains-chips" class="chip-wrap"></div>
+          <form class="m-row" data-form-action="addMobileBlockedDomain">
+            <label for="mobile-add-blocked-domain-input" class="visually-hidden">新增封鎖詐騙網址</label>
+            <input type="url" id="mobile-add-blocked-domain-input" class="flex-1" placeholder="新增封鎖詐騙網址，例：tw-water-pay.xyz" enterkeyhint="done" />
+            <button type="submit" id="btn-mobile-add-blocked-domain" class="danger">➕ 封鎖網址</button>
+          </form>
         </div>
-        <button type="button" id="btn-mobile-save-family-phone" class="ok" style="width:100%;margin-top:6px;padding:6px 8px;font-size:0.78rem;" onclick="saveMobileFamilyPhone()">📞 儲存一鍵撥打家人電話</button>
-      </div>
 
-      <div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#eff6ff;border:1px solid #93c5fd;">
-        <div style="font-weight:800;font-size:0.8rem;color:#1e40af;">🧠 每日打包 LINE 聊天紀錄送交 LLM 深度檢查</div>
-        <div id="mobile-behavior-radar-box" style="font-size:0.72rem;background:#ffffff;border:1px solid #bfdbfe;border-radius:8px;padding:6px 8px;margin-top:5px;color:#1e293b;">📡 同步雲端後將顯示今日最常點開聊天室 Top 3、陌生通話與深夜／刪除行為雷達。</div>
-        <div id="mobile-llm-audit-box" style="font-size:0.73rem;color:#1e293b;margin-top:4px;white-space:pre-line;">尚無 AI 深度審查報告。</div>
-        <div id="mobile-llm-chat-bubble-preview">
-          <div class="sim-line-chatroom-card" data-chat-title="仿真 LINE 聊天室氣泡預覽">
-            <div class="sim-line-chatroom-header">
-              <span>💬 仿真 LINE 聊天室氣泡視覺卡（左白對方／右綠媽媽）</span>
-              <span style="background:#D32F2F;color:#fff;padding:1px 6px;border-radius:4px;font-size:0.68rem;">預覽</span>
+        <div class="m-box m-box-yellow">
+          <div class="m-box-title">📞 攔截畫面一鍵撥打家人電話設定</div>
+          <div class="m-hint">媽媽看到防詐遮罩時點黃色按鈕即可一鍵撥打確認（未填則預設撥打 165）。</div>
+          <form data-form-action="saveMobileFamilyPhone">
+            <div class="m-row">
+              <label for="mobile-family-label-input" class="visually-hidden">家人稱呼</label>
+              <input type="text" id="mobile-family-label-input" class="flex-1 min-w-100" placeholder="稱呼，例：兒子 小明" autocomplete="nickname" />
+              <label for="mobile-family-phone-input" class="visually-hidden">家人電話號碼</label>
+              <input type="tel" id="mobile-family-phone-input" class="flex-14" placeholder="家人電話，例：0912345678" autocomplete="tel" enterkeyhint="done" />
             </div>
-            <div class="sim-line-chatroom-body">
-              <div style="display:flex;flex-direction:column;align-items:flex-start;">
-                <div style="font-size:0.65rem;color:#E8EEF6;margin-bottom:2px;">👤 可疑對象</div>
-                <div class="sim-line-bubble peer">同步雲端狀態後，此處將以 LINE 聊天室藍灰底 (#7494C0) 顯示可疑對話的雙方氣泡與紅字關鍵詞。</div>
+            <button type="submit" id="btn-mobile-save-family-phone" class="ok m-btn-sm m-btn-full">📞 儲存一鍵撥打家人電話</button>
+          </form>
+        </div>
+
+        <div class="m-box m-box-blue">
+          <div class="m-box-title">🧠 每日打包 LINE 聊天紀錄送交 LLM 深度檢查</div>
+          <div id="mobile-behavior-radar-box" class="radar-box">📡 同步雲端後將顯示今日最常點開聊天室 Top 3、陌生通話與深夜／刪除行為雷達。</div>
+          <div id="mobile-llm-audit-box" class="audit-box">尚無 AI 深度審查報告。</div>
+          <div id="mobile-llm-chat-bubble-preview">
+            <div class="sim-line-chatroom-card" data-chat-title="仿真 LINE 聊天室氣泡預覽">
+              <div class="sim-line-chatroom-header">
+                <span>💬 仿真 LINE 聊天室氣泡視覺卡（左白對方／右綠媽媽）</span>
+                <span class="status-pill pill-active">預覽</span>
               </div>
-              <div style="display:flex;flex-direction:column;align-items:flex-end;">
-                <div style="font-size:0.65rem;color:#E8EEF6;margin-bottom:2px;">👵 媽媽</div>
-                <div class="sim-line-bubble mom">媽媽發出的回覆會顯示在右側綠色氣泡 (#95EC69)，方便家屬一眼看懂雙向對話脈絡。</div>
+              <div class="sim-line-chatroom-body">
+                <div class="sim-msg-col peer">
+                  <div class="sim-sender-meta">👤 可疑對象</div>
+                  <div class="sim-line-bubble peer">同步雲端狀態後，此處將以 LINE 聊天室藍灰底 (#7494C0) 顯示可疑對話的雙方氣泡與紅字關鍵詞。</div>
+                </div>
+                <div class="sim-msg-col mom">
+                  <div class="sim-sender-meta">👵 媽媽</div>
+                  <div class="sim-line-bubble mom">媽媽發出的回覆會顯示在右側綠色氣泡 (#95EC69)，方便家屬一眼看懂雙向對話脈絡。</div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        <div id="mobile-llm-audit-progress-wrap" style="display:none;margin-top:6px;">
-          <div style="height:8px;background:#dbeafe;border-radius:999px;overflow:hidden;">
-            <div id="mobile-llm-audit-progress-bar" style="width:0%;height:100%;background:#2563eb;transition:width 0.25s ease;"></div>
+          <div id="mobile-llm-audit-progress-wrap" class="m-section-gap is-hidden">
+            <progress id="mobile-llm-audit-progress-bar" max="100" value="0">0%</progress>
+            <div id="mobile-llm-audit-progress-text" class="m-hint" role="status" aria-live="polite">準備打包今日 LINE 對話與新增好友紀錄…</div>
           </div>
-          <div id="mobile-llm-audit-progress-text" style="font-size:0.7rem;color:#1d4ed8;font-weight:700;margin-top:3px;">準備打包今日 LINE 對話與新增好友紀錄…</div>
+          <div class="m-row">
+            <button type="button" id="btn-mobile-run-llm-audit" class="m-btn-blue m-btn-flex m-btn-sm" data-action="runMobileLlmAudit">🧠 立即執行今日 AI 深度檢查</button>
+          </div>
         </div>
-        <div class="m-row" style="margin-top:6px;">
-          <button type="button" id="btn-mobile-run-llm-audit" style="flex:1;padding:6px 8px;font-size:0.76rem;background:#2563eb;" onclick="runMobileLlmAudit()">🧠 立即執行今日 AI 深度檢查</button>
-        </div>
-      </div>
 
-      <div style="margin-top:10px;">
-        <div style="font-weight:800;font-size:0.82rem;color:#7c2d12;">👤 核准 LINE 聯絡人白名單</div>
-        <div id="mobile-contact-chips" class="chip-wrap"></div>
-        <div class="m-row">
-          <input type="text" id="mobile-add-contact-input" placeholder="輸入媽媽 LINE 上的家人名稱" style="flex:1;" />
-          <button type="button" id="btn-mobile-add-contact" onclick="addMobileWhitelist(false)">＋ 新增</button>
+        <div class="m-section-gap">
+          <label for="mobile-add-contact-input" class="m-section-title">👤 核准 LINE 聯絡人白名單</label>
+          <div id="mobile-contact-chips" class="chip-wrap"></div>
+          <form class="m-row" data-form-action="addMobileWhitelistContact">
+            <input type="text" id="mobile-add-contact-input" class="flex-1" placeholder="輸入媽媽 LINE 上的家人名稱" enterkeyhint="done" />
+            <button type="submit" id="btn-mobile-add-contact">＋ 新增</button>
+          </form>
         </div>
-      </div>
 
-      <div style="margin-top:10px;">
-        <div style="font-weight:800;font-size:0.82rem;color:#7c2d12;">👨‍👩‍👧‍👦 核准家庭群組白名單</div>
-        <div id="mobile-group-chips" class="chip-wrap"></div>
-        <div class="m-row">
-          <input type="text" id="mobile-add-group-input" placeholder="輸入家庭群組名稱" style="flex:1;" />
-          <button type="button" id="btn-mobile-add-group" onclick="addMobileWhitelist(true)">＋ 新增</button>
+        <div class="m-section-gap">
+          <label for="mobile-add-group-input" class="m-section-title">👨‍👩‍👧‍👦 核准家庭群組白名單</label>
+          <div id="mobile-group-chips" class="chip-wrap"></div>
+          <form class="m-row" data-form-action="addMobileWhitelistGroup">
+            <input type="text" id="mobile-add-group-input" class="flex-1" placeholder="輸入家庭群組名稱" enterkeyhint="done" />
+            <button type="submit" id="btn-mobile-add-group">＋ 新增</button>
+          </form>
         </div>
-      </div>
 
-      <div style="margin-top:10px;">
-        <div style="font-weight:800;font-size:0.82rem;color:#7c2d12;">🏷️ 已標記廣告／誤報自動豁免名單</div>
-        <div id="mobile-fp-chips" class="chip-wrap"></div>
-      </div>
+        <div class="m-section-gap">
+          <div class="m-section-title">🏷️ 已標記廣告／誤報自動豁免名單</div>
+          <div id="mobile-fp-chips" class="chip-wrap"></div>
+        </div>
 
-      <div style="margin-top:10px;">
-        <div style="font-weight:800;font-size:0.82rem;color:#991b1b;">🧨 已封鎖詐騙黑名單（強制紅底攔截＋自動封鎖刪除）</div>
-        <div id="mobile-blocked-chips" class="chip-wrap"></div>
-        <div class="m-row">
-          <input type="text" id="mobile-add-blocked-input" placeholder="輸入要遠端封鎖＋刪除的詐騙聊天室或對象名稱" style="flex:1;" />
-          <button type="button" id="btn-mobile-add-blocked" class="danger" onclick="blockAndDeleteMobileFromInput()">🧨 封鎖＋刪除</button>
+        <div class="m-section-gap">
+          <label for="mobile-add-blocked-input" class="m-section-title danger-ink">🧨 已封鎖詐騙黑名單（強制紅底攔截＋自動封鎖刪除）</label>
+          <div id="mobile-blocked-chips" class="chip-wrap"></div>
+          <form class="m-row" data-form-action="blockAndDeleteMobileFromInput">
+            <input type="text" id="mobile-add-blocked-input" class="flex-1" placeholder="輸入要遠端封鎖＋刪除的詐騙聊天室或對象名稱" enterkeyhint="done" />
+            <button type="submit" id="btn-mobile-add-blocked" class="danger">🧨 封鎖＋刪除</button>
+          </form>
         </div>
-      </div>
 
-      <div style="margin-top:10px;padding-top:8px;border-top:1px dashed #fed7aa;">
-        <div style="font-weight:800;font-size:0.82rem;color:#7c2d12;">🔐 遠端修改媽媽手機 6 位數家長 PIN 碼</div>
-        <div class="m-row">
-          <input type="password" id="mobile-new-pin-input" maxlength="6" inputmode="numeric" placeholder="輸入新 6 位數數字 PIN（例：654321）" style="flex:1;" />
-          <button type="button" id="btn-mobile-update-pin" class="secondary" onclick="updateMobileGuardianPin()">🔑 更新 PIN</button>
+        <div class="m-divider-top">
+          <label for="mobile-new-pin-input" class="m-section-title">🔐 遠端修改媽媽手機 6 位數家長 PIN 碼</label>
+          <form class="m-row" data-form-action="updateMobileGuardianPin">
+            <div class="pw-wrap">
+              <input type="password" id="mobile-new-pin-input" maxlength="6" inputmode="numeric" autocomplete="new-password" placeholder="輸入新 6 位數數字 PIN（例：654321）" enterkeyhint="done" />
+              <button type="button" class="pw-toggle" data-action="togglePasswordVisibility" data-target="mobile-new-pin-input" aria-pressed="false" aria-label="顯示或隱藏新家長 PIN 碼">👁️</button>
+            </div>
+            <button type="submit" id="btn-mobile-update-pin" class="secondary">🔑 更新 PIN</button>
+          </form>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- Card 4: Alert Timeline -->
-    <section class="m-card" id="mobileTimelineCard">
-      <h2>③ 最新可疑對話與防篡改警報時間軸 (<span id="mobile-alert-count">0</span>)</h2>
-      <div id="mobile-timeline-list">
-        <div style="color:#64748b;font-size:0.8rem;text-align:center;padding:12px;">尚無警報紀錄或尚未同步。</div>
-      </div>
-    </section>
+      <!-- Card 4: Alert Timeline -->
+      <section class="m-card" id="mobileTimelineCard" aria-labelledby="hdr-mobile-timeline">
+        <h2 id="hdr-mobile-timeline">③ 最新可疑對話與防篡改警報時間軸 (<span id="mobile-alert-count">0</span>)</h2>
+        <div id="mobile-timeline-list">
+          <div class="m-empty">尚無警報紀錄或尚未同步。</div>
+        </div>
+      </section>
 
-    <!-- Card 5: Cloudtop LINE Web Extension Remote Login & Auto-Inspection -->
-    <section class="m-card" id="mobileLineWebInspectorCard" style="border-color:#86efac;background:#f0fdf4;">
-      <h2>
-        <span>💻 Cloudtop LINE 電腦版延伸模組遠端登入與自動對話巡檢</span>
-        <button type="button" id="btn-mobile-line-web-status" class="secondary" style="padding:4px 8px;font-size:0.72rem;" onclick="refreshMobileLineWebStatus()">🔄 重新整理狀態</button>
-      </h2>
-      <div style="font-size:0.75rem;color:#14532d;line-height:1.4;">
-        支援透過本機伺服器 API（<code>/api/line-web/start</code>、<code>/api/line-web/action</code>、<code>/api/line-web/screenshot</code>、<code>/api/line-web/scan-now</code>）遠端啟動 Cloudtop 無頭瀏覽器 LINE 官方 Chrome 延伸模組（<code>ophjlpahpchlmihnnnihgmmeilfjmjjc</code>），免實體手機在手也能遠端輸入帳號密碼、切換 QR Code 掃碼、查看 4~6 位數手機驗證碼，並一鍵擷取最新聊天室對話送交 AI 防詐檢查！
-      </div>
-      <div id="mobile-line-web-state-banner" style="margin-top:6px;padding:6px 8px;border-radius:8px;background:#dcfce7;border:1px solid #86efac;font-size:0.75rem;font-weight:800;color:#166534;">
-        連線狀態：<span id="mobile-line-web-login-state">⚪ 尚未連線（連上本機伺服器時可操作）</span>
-        ｜驗證碼：<span id="mobile-line-web-verify-code">無</span>
-      </div>
-      <div class="m-row" style="margin-top:6px;">
-        <button type="button" id="btn-mobile-line-web-start" class="ok" style="flex:1;padding:6px 8px;font-size:0.75rem;" onclick="startMobileLineWebInspector()">🚀 啟動 LINE 電腦版延伸模組</button>
-        <button type="button" id="btn-mobile-line-web-qr" class="secondary" style="flex:1;padding:6px 8px;font-size:0.75rem;" onclick="switchMobileLineWebQr()">📱 切換 QR Code 掃碼登入</button>
-        <button type="button" id="btn-mobile-line-web-scan" style="flex:1;padding:6px 8px;font-size:0.75rem;background:#2563eb;" onclick="scanMobileLineWebChatsNow()">🔍 立即擷取對話並執行 AI 檢查</button>
-      </div>
-      <div class="m-row" style="margin-top:6px;">
-        <input type="text" id="mobile-line-web-email-input" placeholder="媽媽 LINE 綁定 Email 帳號" style="flex:1;" />
-        <input type="password" id="mobile-line-web-password-input" placeholder="LINE 登入密碼" style="flex:1;" />
-        <button type="button" id="btn-mobile-line-web-login" class="ok" style="padding:6px 10px;font-size:0.75rem;" onclick="loginMobileLineWebWithCredentials()">🔐 帳密遠端登入</button>
-      </div>
-      <div style="margin-top:6px;text-align:center;">
-        <img id="mobile-line-web-screenshot" alt="Cloudtop LINE 電腦版延伸模組即時畫面（點擊可遠端操作座標）" onclick="clickMobileLineWebScreenshot(event)" onerror="this.style.display='none'" style="max-width:100%;max-height:280px;border-radius:8px;border:1px solid #86efac;cursor:crosshair;display:none;" />
-      </div>
-      <div id="mobile-line-web-output" class="result-banner">若透過本機伺服器開啟此頁，可直接使用上方按鈕遠端操控 Cloudtop LINE 電腦版延伸模組。</div>
-    </section>
+      <!-- Card 5: Cloudtop LINE Web Extension Remote Login & Auto-Inspection -->
+      <section class="m-card m-card-green" id="mobileLineWebInspectorCard" aria-labelledby="hdr-mobile-line-web">
+        <h2 id="hdr-mobile-line-web">
+          <span>💻 Cloudtop LINE 電腦版延伸模組遠端登入與自動對話巡檢</span>
+          <button type="button" id="btn-mobile-line-web-status" class="secondary m-btn-xs" data-action="refreshMobileLineWebStatus">🔄 重新整理狀態</button>
+        </h2>
+        <div class="m-hint">
+          支援透過本機伺服器 API（<code>/api/line-web/start</code>、<code>/api/line-web/action</code>、<code>/api/line-web/screenshot</code>、<code>/api/line-web/scan-now</code>）遠端啟動 Cloudtop 無頭瀏覽器 LINE 官方 Chrome 延伸模組（<code>ophjlpahpchlmihnnnihgmmeilfjmjjc</code>），免實體手機在手也能遠端輸入帳號密碼、切換 QR Code 掃碼、查看 4~6 位數手機驗證碼，並一鍵擷取最新聊天室對話送交 AI 防詐檢查！
+        </div>
+        <div id="mobile-line-web-state-banner" class="line-web-banner" role="status" aria-live="polite">
+          連線狀態：<span id="mobile-line-web-login-state">⚪ 尚未連線（連上本機伺服器時可操作）</span>
+          ｜驗證碼：<span id="mobile-line-web-verify-code">無</span>
+        </div>
+        <div class="m-row">
+          <button type="button" id="btn-mobile-line-web-start" class="ok m-btn-flex m-btn-sm" data-action="startMobileLineWebInspector">🚀 啟動 LINE 電腦版延伸模組</button>
+          <button type="button" id="btn-mobile-line-web-qr" class="secondary m-btn-flex m-btn-sm" data-action="switchMobileLineWebQr">📱 切換 QR Code 掃碼登入</button>
+          <button type="button" id="btn-mobile-line-web-scan" class="m-btn-blue m-btn-flex m-btn-sm" data-action="scanMobileLineWebChatsNow">🔍 立即擷取對話並執行 AI 檢查</button>
+        </div>
+        <form class="m-row" data-form-action="loginMobileLineWebWithCredentials">
+          <label for="mobile-line-web-email-input" class="visually-hidden">媽媽 LINE 綁定 Email 帳號</label>
+          <input type="email" id="mobile-line-web-email-input" class="flex-1" placeholder="媽媽 LINE 綁定 Email 帳號" autocomplete="email" />
+          <div class="pw-wrap">
+            <label for="mobile-line-web-password-input" class="visually-hidden">LINE 登入密碼</label>
+            <input type="password" id="mobile-line-web-password-input" class="flex-1" placeholder="LINE 登入密碼" autocomplete="current-password" enterkeyhint="done" />
+            <button type="button" class="pw-toggle" data-action="togglePasswordVisibility" data-target="mobile-line-web-password-input" aria-pressed="false" aria-label="顯示或隱藏 LINE 登入密碼">👁️</button>
+          </div>
+          <button type="submit" id="btn-mobile-line-web-login" class="ok m-btn-sm">🔐 帳密遠端登入</button>
+        </form>
+        <div class="center-block">
+          <img id="mobile-line-web-screenshot" class="line-web-screenshot" width="420" height="280" tabindex="0" role="button" alt="Cloudtop LINE 電腦版延伸模組即時畫面（點擊可遠端操作座標）" data-action="clickMobileLineWebScreenshot" />
+        </div>
+        <div id="mobile-line-web-output" class="result-banner" role="status" aria-live="polite">若透過本機伺服器開啟此頁，可直接使用上方按鈕遠端操控 Cloudtop LINE 電腦版延伸模組。</div>
+      </section>
 
-    <!-- Card 0: Pairing & Key Config -->
-    <section class="m-card" id="mobilePairingCard">
-      <h2>🔑 手機配對與端到端加密金鑰設定</h2>
-      <div style="font-size:0.75rem;color:#57534e;margin-bottom:6px;">
-        金鑰僅儲存在您自己手機瀏覽器的 <code>localStorage</code>，不會上傳至任何第三方伺服器。可直接貼上電腦首頁產生的 <code>ESS1:...</code> 家屬設定碼一鍵帶入！
-      </div>
-      <div class="m-row">
-        <input type="text" id="mobile-setup-code-input" placeholder="貼上 ESS1:... 家屬設定碼一鍵綁定" style="flex:1;" />
-        <button type="button" id="btn-mobile-import-setup-code" class="ok" onclick="importMobileSetupCode()">📥 解析設定碼</button>
-      </div>
-      <details style="margin-top:8px;" open>
-        <summary>手動檢視／調整連線金鑰與 GitHub 端點</summary>
-        <div class="m-row">
-          <input type="password" id="mobile-line-token-input" placeholder="LINE Channel Access Token（解密 token_envelope 必填）" />
+      <!-- Card 0: Pairing & Key Config -->
+      <section class="m-card" id="mobilePairingCard" aria-labelledby="hdr-mobile-pairing">
+        <h2 id="hdr-mobile-pairing">🔑 手機配對與端到端加密金鑰設定</h2>
+        <div class="m-hint">
+          金鑰僅儲存在您自己手機瀏覽器的 <code>localStorage</code>（或勾選下方僅限本次工作階段的 <code>sessionStorage</code>），不會上傳至任何第三方伺服器。可直接貼上電腦首頁產生的 <code>ESS1:...</code> 家屬設定碼一鍵帶入！
         </div>
-        <div class="m-row">
-          <input type="password" id="mobile-github-token-input" placeholder="GitHub Personal Access Token（私有 Repo 讀寫必填）" />
-        </div>
-        <div class="m-row">
-          <input type="text" id="mobile-github-repo-input" value="steven1lung/elderly-shield-ota" placeholder="GitHub Repo (owner/repo)" />
-        </div>
-        <div class="m-row">
-          <input type="text" id="mobile-custom-api-url-input" placeholder="自訂 Contents API URL（選填，留空預設連 GitHub API）" />
-        </div>
-        <div class="m-row">
-          <button type="button" id="btn-mobile-save-keys" class="ok" onclick="saveMobileKeysAndSync()">💾 儲存金鑰並同步</button>
-          <button type="button" id="btn-mobile-clear-keys" class="secondary" onclick="clearMobileKeys()">🧹 清除本機金鑰</button>
-        </div>
-      </details>
-    </section>
+        <form class="m-row" data-form-action="importMobileSetupCode">
+          <label for="mobile-setup-code-input" class="visually-hidden">ESS1 家屬設定碼</label>
+          <input type="text" id="mobile-setup-code-input" class="flex-1" placeholder="貼上 ESS1:... 家屬設定碼一鍵綁定" autocomplete="off" enterkeyhint="done" />
+          <button type="submit" id="btn-mobile-import-setup-code" class="ok">📥 解析設定碼</button>
+        </form>
+        <details class="m-section-gap" open>
+          <summary>手動檢視／調整連線金鑰與 GitHub 端點</summary>
+          <form data-form-action="saveMobileKeysAndSync">
+            <label for="mobile-line-token-input" class="m-label">LINE Channel Access Token（解密必填）</label>
+            <div class="m-row">
+              <div class="pw-wrap">
+                <input type="password" id="mobile-line-token-input" autocomplete="off" placeholder="LINE Channel Access Token（解密 token_envelope 必填）" />
+                <button type="button" class="pw-toggle" data-action="togglePasswordVisibility" data-target="mobile-line-token-input" aria-pressed="false" aria-label="顯示或隱藏 LINE Token">👁️</button>
+              </div>
+            </div>
+            <label for="mobile-github-token-input" class="m-label">GitHub Personal Access Token（私有 Repo 讀寫必填）</label>
+            <div class="m-row">
+              <div class="pw-wrap">
+                <input type="password" id="mobile-github-token-input" autocomplete="off" placeholder="GitHub Personal Access Token（私有 Repo 讀寫必填）" />
+                <button type="button" class="pw-toggle" data-action="togglePasswordVisibility" data-target="mobile-github-token-input" aria-pressed="false" aria-label="顯示或隱藏 GitHub Token">👁️</button>
+              </div>
+            </div>
+            <label for="mobile-github-repo-input" class="m-label">GitHub Repo (owner/repo)</label>
+            <div class="m-row">
+              <input type="text" id="mobile-github-repo-input" value="steven1lung/elderly-shield-ota" autocomplete="off" placeholder="GitHub Repo (owner/repo)" />
+            </div>
+            <label for="mobile-custom-api-url-input" class="m-label">自訂 Contents API URL（選填）</label>
+            <div class="m-row">
+              <input type="url" id="mobile-custom-api-url-input" autocomplete="url" placeholder="自訂 Contents API URL（選填，留空預設連 GitHub API）" />
+            </div>
+            <div class="m-row">
+              <label for="mobile-ephemeral-keys-checkbox" class="m-hint">
+                <input type="checkbox" id="mobile-ephemeral-keys-checkbox" /> 僅保留金鑰於本次分頁工作階段（使用 <code>sessionStorage</code>，關閉分頁即清除）
+              </label>
+            </div>
+            <div class="m-row">
+              <button type="submit" id="btn-mobile-save-keys" class="ok">💾 儲存金鑰並同步</button>
+              <button type="button" id="btn-mobile-clear-keys" class="secondary" data-action="clearMobileKeys" data-confirm="確定清除瀏覽器本機儲存的配對金鑰與狀態快取嗎？清除後須重新貼上 ESS1 設定碼或手動輸入金鑰。">🧹 清除本機金鑰</button>
+            </div>
+          </form>
+        </details>
+      </section>
+    </main>
   </div>
+
+  <dialog id="confirmActionDialog" aria-labelledby="confirmDialogTitle" aria-describedby="confirmDialogDesc">
+    <form method="dialog">
+      <h2 id="confirmDialogTitle" class="m-section-title danger-ink">⚠️ 請確認高影響操作</h2>
+      <p id="confirmDialogDesc" class="m-hint"></p>
+      <div class="m-row">
+        <button type="submit" value="cancel" id="confirmDialogCancelBtn" class="secondary m-btn-flex">取消</button>
+        <button type="submit" value="confirm" id="confirmDialogConfirmBtn" class="danger m-btn-flex">確認執行</button>
+      </div>
+    </form>
+  </dialog>
 
   <script>
   // ============================================================================
@@ -653,11 +1054,10 @@
         nonce = hexToBytes(fixedNonceHex);
       } else {
         nonce = new Uint8Array(16);
-        if (window.crypto && window.crypto.getRandomValues) {
-          window.crypto.getRandomValues(nonce);
-        } else {
-          for (let i = 0; i < 16; i++) nonce[i] = Math.floor(Math.random() * 256);
+        if (!window.crypto || !window.crypto.getRandomValues) {
+          throw new Error('Secure random generator (crypto.getRandomValues) is unavailable');
         }
+        window.crypto.getRandomValues(nonce);
       }
       const { encKey, macKey } = deriveEnvelopeKeys(cleanSecret, nonce);
       const ciphertext = keystreamXor(encKey, nonce, plaintextBytes);
@@ -719,11 +1119,10 @@
 
     function randomSaltHex() {
       const b = new Uint8Array(16);
-      if (window.crypto && window.crypto.getRandomValues) {
-        window.crypto.getRandomValues(b);
-      } else {
-        for (let i = 0; i < 16; i++) b[i] = Math.floor(Math.random() * 256);
+      if (!window.crypto || !window.crypto.getRandomValues) {
+        throw new Error('Secure random generator (crypto.getRandomValues) is unavailable');
       }
+      window.crypto.getRandomValues(b);
       return bytesToHex(b);
     }
 
@@ -753,6 +1152,44 @@
     customApiUrl: 'ess_mobile_custom_api_url',
     cachedState: 'ess_mobile_cached_state',
   };
+  const EPHEMERAL_MODE_KEY = 'ess_mobile_ephemeral_mode';
+
+  function getKeyStorage() {
+    const cb = document.getElementById('mobile-ephemeral-keys-checkbox');
+    if (cb && cb.checked) return window.sessionStorage;
+    try {
+      if (window.sessionStorage && window.sessionStorage.getItem(EPHEMERAL_MODE_KEY) === '1') {
+        return window.sessionStorage;
+      }
+    } catch (e) {}
+    return window.localStorage;
+  }
+
+  function readStoredItem(key) {
+    try {
+      const sVal = window.sessionStorage ? window.sessionStorage.getItem(key) : null;
+      if (sVal !== null && sVal !== undefined && sVal !== '') return sVal;
+    } catch (e) {}
+    try {
+      return window.localStorage ? window.localStorage.getItem(key) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function persistStateCache() {
+    try {
+      getKeyStorage().setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    } catch (e) {}
+  }
+
+  async function fetchWithTimeout(url, options = {}, timeoutMs = 20000) {
+    const opts = Object.assign({}, options || {});
+    if (!opts.signal && typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+      opts.signal = AbortSignal.timeout(timeoutMs);
+    }
+    return await fetch(url, opts);
+  }
 
   let mobileState = {
     config_revision_ms: 0,
@@ -823,16 +1260,22 @@
   }
 
   function loadStoredKeys() {
-    const lineTok = localStorage.getItem(STORAGE_KEYS.lineToken) || '';
-    const ghTok = localStorage.getItem(STORAGE_KEYS.githubToken) || '';
-    const repo = localStorage.getItem(STORAGE_KEYS.githubRepo) || 'steven1lung/elderly-shield-ota';
-    const apiUrl = localStorage.getItem(STORAGE_KEYS.customApiUrl) || '';
+    const cb = $id('mobile-ephemeral-keys-checkbox');
+    let isEphemeral = false;
+    try {
+      isEphemeral = Boolean(window.sessionStorage && window.sessionStorage.getItem(EPHEMERAL_MODE_KEY) === '1');
+    } catch (e) {}
+    if (cb) cb.checked = isEphemeral;
+    const lineTok = readStoredItem(STORAGE_KEYS.lineToken) || '';
+    const ghTok = readStoredItem(STORAGE_KEYS.githubToken) || '';
+    const repo = readStoredItem(STORAGE_KEYS.githubRepo) || 'steven1lung/elderly-shield-ota';
+    const apiUrl = readStoredItem(STORAGE_KEYS.customApiUrl) || '';
     if ($id('mobile-line-token-input')) $id('mobile-line-token-input').value = lineTok;
     if ($id('mobile-github-token-input')) $id('mobile-github-token-input').value = ghTok;
     if ($id('mobile-github-repo-input')) $id('mobile-github-repo-input').value = repo;
     if ($id('mobile-custom-api-url-input')) $id('mobile-custom-api-url-input').value = apiUrl;
     try {
-      const cached = localStorage.getItem(STORAGE_KEYS.cachedState);
+      const cached = readStoredItem(STORAGE_KEYS.cachedState);
       if (cached) {
         mobileState = { ...mobileState, ...JSON.parse(cached) };
       }
@@ -851,16 +1294,35 @@
 
   function saveKeysToLocalStorage() {
     const cfg = getActiveConfigInputs();
-    localStorage.setItem(STORAGE_KEYS.lineToken, cfg.lineToken);
-    localStorage.setItem(STORAGE_KEYS.githubToken, cfg.githubToken);
-    localStorage.setItem(STORAGE_KEYS.githubRepo, cfg.githubRepo);
-    localStorage.setItem(STORAGE_KEYS.customApiUrl, cfg.customApiUrl);
+    const cb = $id('mobile-ephemeral-keys-checkbox');
+    const useSession = Boolean(cb && cb.checked);
+    const store = useSession ? window.sessionStorage : window.localStorage;
+    try {
+      if (window.sessionStorage) {
+        if (useSession) window.sessionStorage.setItem(EPHEMERAL_MODE_KEY, '1');
+        else window.sessionStorage.removeItem(EPHEMERAL_MODE_KEY);
+      }
+      if (useSession && window.localStorage) {
+        Object.values(STORAGE_KEYS).forEach(k => window.localStorage.removeItem(k));
+      }
+      store.setItem(STORAGE_KEYS.lineToken, cfg.lineToken);
+      store.setItem(STORAGE_KEYS.githubToken, cfg.githubToken);
+      store.setItem(STORAGE_KEYS.githubRepo, cfg.githubRepo);
+      store.setItem(STORAGE_KEYS.customApiUrl, cfg.customApiUrl);
+    } catch (e) {}
     return cfg;
   }
 
   function clearMobileKeys() {
-    Object.values(STORAGE_KEYS).forEach(k => localStorage.removeItem(k));
+    try {
+      Object.values(STORAGE_KEYS).forEach(k => {
+        if (window.localStorage) window.localStorage.removeItem(k);
+        if (window.sessionStorage) window.sessionStorage.removeItem(k);
+      });
+      if (window.sessionStorage) window.sessionStorage.removeItem(EPHEMERAL_MODE_KEY);
+    } catch (e) {}
     mobileState.config_revision_ms = 0;
+    if ($id('mobile-ephemeral-keys-checkbox')) $id('mobile-ephemeral-keys-checkbox').checked = false;
     $id('mobile-line-token-input').value = '';
     $id('mobile-github-token-input').value = '';
     $id('mobile-custom-api-url-input').value = '';
@@ -1082,6 +1544,23 @@
   function formatTaipeiDateTimeFromEpochMs(ms) {
     const n = Number(ms || 0);
     if (!Number.isFinite(n) || n <= 0) return '';
+    try {
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Taipei',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hourCycle: 'h23',
+      }).formatToParts(new Date(n));
+      const map = {};
+      for (const p of parts) map[p.type] = p.value;
+      if (map.year && map.month && map.day && map.hour && map.minute && map.second) {
+        return `${map.year}-${map.month}-${map.day} ${map.hour}:${map.minute}:${map.second}`;
+      }
+    } catch (e) {}
     return new Date(n + 8 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 19);
   }
 
@@ -2835,14 +3314,14 @@
       // Fallback: if hosted on FamilyControlWebServer (/mobile) without local browser token, try server API
       if (window.location.protocol.startsWith('http') && !cfg.customApiUrl) {
         try {
-          const resp = await fetch('/api/cloud/sync', {
+          const resp = await fetchWithTimeout('/api/cloud/sync', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ force_push: Boolean(forcePush) }),
           });
           if (resp.ok) {
             const data = await resp.json();
-            const cfgResp = await fetch('/api/config');
+            const cfgResp = await fetchWithTimeout('/api/config');
             if (cfgResp.ok) {
               const cfgJson = await cfgResp.json();
               if (cfgJson.config) {
@@ -2882,7 +3361,7 @@
                   latest_ota_version_code: c.latest_ota_version_code || 0,
                   latest_ota_version_name: c.latest_ota_version_name || c.latest_ota_version || '',
                 });
-                localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+                persistStateCache();
                 renderMobileState();
                 $id('mobile-sync-badge').textContent = '🟢 已同步';
                 $id('mobile-sync-badge').className = 'status-pill pill-ok';
@@ -2903,7 +3382,7 @@
 
     try {
       for (let attempt = 0; attempt < 2; attempt++) {
-        const getResp = await fetch(apiUrl, { method: 'GET', headers, cache: 'no-store' });
+        const getResp = await fetchWithTimeout(apiUrl, { method: 'GET', headers, cache: 'no-store' });
         let remoteDoc = null;
         if (getResp.status === 200) {
           const wrapper = await getResp.json();
@@ -2940,7 +3419,7 @@
         }
 
         mobileState = mergeEnvelopeState(mobileState, remotePayload);
-        localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+        persistStateCache();
         renderMobileState();
 
         if (!forcePush && remotePayload && Number(remotePayload.config_revision_ms || 0) >= Number(mobileState.config_revision_ms || 0)) {
@@ -2980,7 +3459,7 @@
             content: contentB64,
           };
           if (lastRemoteSha) putBody.sha = lastRemoteSha;
-          const putResp = await fetch(apiUrl, {
+          const putResp = await fetchWithTimeout(apiUrl, {
             method: 'PUT',
             headers: { ...headers, 'Content-Type': 'application/json' },
             body: JSON.stringify(putBody),
@@ -3027,7 +3506,7 @@
         const data = await resp.json();
         if (data.ok && data.config) {
           mobileState = mergeEnvelopeState(mobileState, data.config);
-          localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+          persistStateCache();
           renderMobileState();
           if ($id('mobile-sync-badge')) {
             $id('mobile-sync-badge').textContent = '🟢 已同步';
@@ -3085,7 +3564,7 @@
       }],
       Number(mobileState.alerts_cleared_at_ms || 0)
     );
-    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    persistStateCache();
     renderMobileState();
     const ok = await syncMobileCloudNow(true);
     if (ok) {
@@ -3114,7 +3593,7 @@
         const data = await resp.json();
         if (data.ok && data.config) {
           mobileState = mergeEnvelopeState(mobileState, data.config);
-          localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+          persistStateCache();
           renderMobileState();
           if ($id('mobile-sync-badge')) {
             $id('mobile-sync-badge').textContent = '🟢 已同步';
@@ -3205,7 +3684,7 @@
       acknowledged_scam_rooms: nextAckRooms,
       acknowledged_room_signatures: nextAckSigs,
     };
-    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    persistStateCache();
     renderMobileState();
     const ok = await syncMobileCloudNow(true);
     if (ok) {
@@ -3244,7 +3723,7 @@
     };
     mobileState.config_revision_ms = Math.max(Date.now(), Number(mobileState.config_revision_ms || 0) + 1);
     mobileState.config_source = 'mobile_guardian_web';
-    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    persistStateCache();
     renderMobileState();
     if (!(await syncMobileCloudNow(true))) return;
     setBanner(
@@ -3271,7 +3750,7 @@
     mobileState.protection_mode = mode;
     mobileState.config_revision_ms = Math.max(nowMs, Number(mobileState.config_revision_ms || 0) + 1);
     mobileState.config_source = 'mobile_guardian_web';
-    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    persistStateCache();
     renderMobileState();
     if (!(await syncMobileCloudNow(true))) return;
     setBanner(
@@ -3297,7 +3776,7 @@
     mobileState.lock_add_friend_enabled = Boolean(enabled);
     mobileState.config_revision_ms = Math.max(Date.now(), Number(mobileState.config_revision_ms || 0) + 1);
     mobileState.config_source = 'mobile_guardian_web';
-    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    persistStateCache();
     renderMobileState();
     if (!(await syncMobileCloudNow(true))) return;
     setBanner(
@@ -3356,7 +3835,7 @@
     mobileState.call_circuit_breaker_enabled = Boolean(enabled);
     mobileState.config_revision_ms = Math.max(Date.now(), Number(mobileState.config_revision_ms || 0) + 1);
     mobileState.config_source = 'mobile_guardian_web';
-    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    persistStateCache();
     renderMobileState();
     if (!(await syncMobileCloudNow(true))) return;
     setBanner(
@@ -3382,7 +3861,7 @@
     mobileState.browser_domain_shield_enabled = Boolean(enabled);
     mobileState.config_revision_ms = Math.max(Date.now(), Number(mobileState.config_revision_ms || 0) + 1);
     mobileState.config_source = 'mobile_guardian_web';
-    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    persistStateCache();
     renderMobileState();
     if (!(await syncMobileCloudNow(true))) return;
     setBanner(
@@ -3428,7 +3907,7 @@
     mobileState.blocked_scam_domains = cur.slice(0, 300);
     mobileState.config_revision_ms = Math.max(Date.now(), Number(mobileState.config_revision_ms || 0) + 1);
     mobileState.config_source = 'mobile_guardian_web';
-    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    persistStateCache();
     if (input) input.value = '';
     renderMobileState();
     if (!(await syncMobileCloudNow(true))) return;
@@ -3453,7 +3932,7 @@
     mobileState.blocked_scam_domains = (mobileState.blocked_scam_domains || []).filter(d => normalizeMobileDomain(d) !== norm);
     mobileState.config_revision_ms = Math.max(Date.now(), Number(mobileState.config_revision_ms || 0) + 1);
     mobileState.config_source = 'mobile_guardian_web';
-    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    persistStateCache();
     renderMobileState();
     if (!(await syncMobileCloudNow(true))) return;
     setBanner('mobile-sync-output', `🗑️ 已從封鎖網址清單移除「${norm}」並同步雲端！`, true);
@@ -3483,7 +3962,7 @@
     mobileState.blocked_scam_domains = merged;
     mobileState.config_revision_ms = Math.max(Date.now(), Number(mobileState.config_revision_ms || 0) + 1);
     mobileState.config_source = 'mobile_guardian_web';
-    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    persistStateCache();
     renderMobileState();
     if (!(await syncMobileCloudNow(true))) return;
     setBanner('mobile-sync-output', `✅ 已同步內政部 165 最新詐騙網址庫（共 ${merged.length} 筆）並推送至媽媽手機！`, true);
@@ -3511,7 +3990,7 @@
     mobileState.guardian_family_label = cleanLabel;
     mobileState.config_revision_ms = Math.max(Date.now(), Number(mobileState.config_revision_ms || 0) + 1);
     mobileState.config_source = 'mobile_guardian_web';
-    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    persistStateCache();
     renderMobileState();
     if (!(await syncMobileCloudNow(true))) return;
     setBanner(
@@ -3527,8 +4006,16 @@
     const wrapEl = $id('mobile-llm-audit-progress-wrap');
     const barEl = $id('mobile-llm-audit-progress-bar');
     const txtEl = $id('mobile-llm-audit-progress-text');
-    if (wrapEl) wrapEl.style.display = visible === false ? 'none' : 'block';
-    if (barEl) barEl.style.width = `${Math.max(0, Math.min(100, Number(pct || 0)))}%`;
+    const clampedPct = Math.max(0, Math.min(100, Number(pct || 0)));
+    if (wrapEl) {
+      wrapEl.classList.toggle('is-hidden', visible === false);
+      wrapEl.style.display = visible === false ? 'none' : 'block';
+    }
+    if (barEl) {
+      barEl.value = clampedPct;
+      barEl.max = 100;
+      barEl.textContent = `${clampedPct}%`;
+    }
     if (txtEl && label) txtEl.textContent = String(label);
   }
 
@@ -3539,11 +4026,11 @@
     if (window.location.protocol.startsWith('http')) {
       try {
         setMobileAuditProgress(60, '🤖 正在呼叫 AI 四階段長線養套殺推理引擎 (60%)…', true);
-        const resp = await fetch('/api/reports/daily-llm-audit', {
+        const resp = await fetchWithTimeout('/api/reports/daily-llm-audit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({}),
-        });
+        }, 60000);
         if (resp.ok) {
           setMobileAuditProgress(90, '☁️ 正在同步檢查結果並更新今日完成狀態 (90%)…', true);
           const data = await resp.json();
@@ -3557,7 +4044,7 @@
             if (data.status && data.status.daily_chat_digest && typeof data.status.daily_chat_digest === 'object') {
               mobileState.daily_chat_digest = data.status.daily_chat_digest;
             }
-            localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+            persistStateCache();
             setMobileAuditProgress(100, '✅ 今日 AI 深度防詐檢查已完成 (100%)', true);
             renderMobileState();
             if ($id('mobile-sync-badge')) {
@@ -3699,7 +4186,7 @@
         llm_narrative: zeroSummary,
       };
       setMobileAuditProgress(100, '✅ 今日 AI 檢查已完成（無新增變動，100%）', true);
-      localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+      persistStateCache();
       renderMobileState();
       await syncMobileCloudNow(true);
       setBanner('mobile-sync-output', zeroMsg, keptHighCrit === 0);
@@ -3715,7 +4202,7 @@
         let usedModel = 'gemini-3-flash-preview';
         for (const mId of candidateModels) {
           try {
-            const llmResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${mId}:generateContent?key=${geminiKey}`, {
+            const llmResp = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${mId}:generateContent?key=${geminiKey}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -3727,7 +4214,7 @@
                   thinkingConfig: { thinkingLevel: 'HIGH' },
                 },
               }),
-            });
+            }, 60000);
             if (llmResp.ok) {
               llmJson = await llmResp.json();
               usedModel = mId;
@@ -3842,7 +4329,7 @@
             llm_narrative: parsed.narrative || '',
           };
           setMobileAuditProgress(100, '✅ 今日 AI 深度防詐檢查已完成 (100%)', true);
-          localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+          persistStateCache();
           renderMobileState();
           await syncMobileCloudNow(true);
           setBanner('mobile-sync-output', msg, suspCount === 0);
@@ -3906,7 +4393,7 @@
       llm_narrative: fallbackSummary,
     };
     setMobileAuditProgress(100, '✅ 已完成今日安全檢查並同步雲端 (100%)', true);
-    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    persistStateCache();
     renderMobileState();
     await syncMobileCloudNow(true);
     setBanner('mobile-sync-output', fallbackMsg, keptHighCrit === 0);
@@ -3929,7 +4416,7 @@
       push_policy: policy,
     };
     mobileState.config_revision_ms = Math.max(Date.now(), Number(mobileState.config_revision_ms || 0) + 1);
-    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    persistStateCache();
     renderMobileState();
     if (!(await syncMobileCloudNow(true))) return;
     setBanner('mobile-sync-output', `📊 已切換 LINE 推播策略為 ${policy}！`, true);
@@ -3953,7 +4440,7 @@
       return a;
     });
     mobileState.config_revision_ms = Math.max(Date.now(), Number(mobileState.config_revision_ms || 0) + 1);
-    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    persistStateCache();
     renderMobileState();
     if (!(await syncMobileCloudNow(true))) return;
     setBanner('mobile-sync-output', `✋ 已認領處理「${chatTitle || alertId}」並同步至雲端！`, true);
@@ -3996,7 +4483,7 @@
     });
     pruneMobileAuditRooms(fpRemovedSet);
     mobileState.config_revision_ms = Math.max(Date.now(), Number(mobileState.config_revision_ms || 0) + 1);
-    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    persistStateCache();
     renderMobileState();
     if (!(await syncMobileCloudNow(true))) return;
     setBanner('mobile-sync-output', `🚫 已標記「${chatTitle || senderName}」為廣告／誤報並加入自動豁免！`, true);
@@ -4153,7 +4640,7 @@
     pruneMobileAuditRooms(toRemove);
     mobileState.config_revision_ms = Math.max(Date.now(), Number(mobileState.config_revision_ms || 0) + 1);
     mobileState.config_source = 'mobile_block_delete_scam_chat';
-    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    persistStateCache();
     renderMobileState();
     if (!(await syncMobileCloudNow(true))) return;
     setBanner(
@@ -4259,10 +4746,23 @@
     mobileState.whitelist_added_at = addedAt;
     mobileState.whitelist_removed_at = removedAt;
     mobileState.config_revision_ms = Math.max(nowMs, Number(mobileState.config_revision_ms || 0) + 1);
-    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    persistStateCache();
     renderMobileState();
     if (!(await syncMobileCloudNow(true))) return;
     setBanner('mobile-sync-output', `✅ 已從行為雷達將「${cleanName}」加入白名單並同步雲端！`, true);
+  }
+
+  const GENERIC_CALLER_PLACEHOLDERS = new Set([
+    '通話', '通話中', '來電', '來電中', '撥出通話', '正在通話', '語音通話', '視訊通話',
+    '電話', '一般電話', '未知通話', '陌生通話', '陌生通話對象',
+    '一般電話（未知來電者）', '一般電話（系統未提供來電者）', '通話中對象', '未知來電',
+    'call', 'ongoing call', 'incoming call', 'dialing', 'phone',
+  ]);
+
+  function isGenericCallerPlaceholder(label) {
+    const clean = String(label || '').trim();
+    if (!clean) return true;
+    return GENERIC_CALLER_PLACEHOLDERS.has(clean) || GENERIC_CALLER_PLACEHOLDERS.has(clean.toLowerCase());
   }
 
   function computeMobileBehaviorRadar(digest, state) {
@@ -4276,6 +4776,13 @@
     ].map(x => stripWhitelistSuffix(String(x || '').trim()).toLowerCase()).filter(Boolean));
     const blockedNorms = new Set(
       (stObj.blocked_scam_contacts || []).map(x => stripWhitelistSuffix(String(x || '').trim()).toLowerCase()).filter(Boolean)
+    );
+    const repObj = (stObj.last_llm_audit_report && typeof stObj.last_llm_audit_report === 'object') ? stObj.last_llm_audit_report : {};
+    const suspiciousRoomNorms = new Set(
+      (Array.isArray(repObj.suspicious_chats) ? repObj.suspicious_chats : [])
+        .filter(sc => sc && typeof sc === 'object' && sc.is_suspicious && String(sc.chat_title || '').trim())
+        .map(sc => stripWhitelistSuffix(String(sc.chat_title || '').trim()).toLowerCase())
+        .filter(Boolean)
     );
     const recentDates = (dObj.contact_recent_dates && typeof dObj.contact_recent_dates === 'object') ? dObj.contact_recent_dates : {};
     const countStreak = (datesArr, addToday) => {
@@ -4300,6 +4807,7 @@
           ? Object.entries(rawChats).map(([k, v]) => (v && typeof v === 'object' ? Object.assign({ chat_title: k }, v) : { chat_title: k }))
           : []);
     const visited = [];
+    const visitedByNorm = new Map();
     for (const ch of chatList) {
       if (!ch || typeof ch !== 'object') continue;
       const title = String(ch.chat_title || '').trim();
@@ -4317,7 +4825,7 @@
       const updatedAtMs = Math.max(0, Number(ch.updated_at_ms || ch.last_seen_ms || 0));
       const cDates = recentDates[title] || recentDates[normLow] || [];
       const streak = isWl ? 0 : countStreak(cDates, openCount > 0);
-      visited.push({
+      const itemObj = {
         chat_title: title,
         is_whitelisted: isWl,
         open_count: openCount,
@@ -4327,10 +4835,19 @@
         unsent_count: unsentCount,
         consecutive_days: streak,
         updated_at_ms: updatedAtMs,
-      });
+      };
+      visited.push(itemObj);
+      if (normLow) visitedByNorm.set(normLow, itemObj);
     }
     const topVisited = visited
-      .filter(x => x.open_count > 0)
+      .filter(x => x.open_count > 0 && (
+        x.open_count >= 2
+        || x.dwell_seconds >= 60
+        || x.late_night_visit_count > 0
+        || x.mom_reply_count >= 2
+        || x.consecutive_days >= 2
+        || suspiciousRoomNorms.has(stripWhitelistSuffix(x.chat_title).toLowerCase())
+      ))
       .sort((a, b) => (b.open_count - a.open_count) || (b.dwell_seconds - a.dwell_seconds) || (b.mom_reply_count - a.mom_reply_count) || (b.updated_at_ms - a.updated_at_ms))
       .slice(0, 3);
     const topCalls = (Array.isArray(dObj.today_unwhitelisted_calls) ? dObj.today_unwhitelisted_calls : [])
@@ -4345,7 +4862,26 @@
       .filter(c => c && Number(c.late_night_count || 0) > 0)
       .slice(0, 5);
     const deleteEvents = (Array.isArray(dObj.today_delete_events) ? dObj.today_delete_events : [])
-      .filter(ev => ev && typeof ev === 'object' && String(ev.chat_title || '').trim())
+      .filter(ev => {
+        if (!ev || typeof ev !== 'object' || !String(ev.chat_title || '').trim()) return false;
+        const et = String(ev.event_type || '').toUpperCase();
+        const uCnt = Number(ev.unsent_count || 0);
+        if (et === 'UNSENT_MESSAGES_BURST' && uCnt <= 2) {
+          const evNorm = stripWhitelistSuffix(String(ev.chat_title || '').trim()).toLowerCase();
+          const roomMeta = visitedByNorm.get(evNorm);
+          if (
+            roomMeta
+            && !suspiciousRoomNorms.has(evNorm)
+            && roomMeta.open_count < 2
+            && roomMeta.dwell_seconds < 60
+            && roomMeta.late_night_visit_count === 0
+            && roomMeta.consecutive_days < 2
+          ) {
+            return false;
+          }
+        }
+        return true;
+      })
       .sort((a, b) => Number(b.epoch_ms || 0) - Number(a.epoch_ms || 0))
       .slice(0, 5);
     return {
@@ -4402,7 +4938,7 @@
     mobileState.whitelist_added_at = addedAt;
     mobileState.whitelist_removed_at = removedAt;
     mobileState.config_revision_ms = Math.max(nowMs, Number(mobileState.config_revision_ms || 0) + 1);
-    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    persistStateCache();
     input.value = '';
     renderMobileState();
     if (!(await syncMobileCloudNow(true))) return;
@@ -4455,7 +4991,7 @@
     mobileState.whitelist_added_at = addedAt;
     mobileState.whitelist_removed_at = removedAt;
     mobileState.config_revision_ms = Math.max(nowMs, Number(mobileState.config_revision_ms || 0) + 1);
-    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    persistStateCache();
     renderMobileState();
     if (!(await syncMobileCloudNow(true))) return;
     setBanner('mobile-sync-output', `🗑️ 已將「${cleanName}」自${isGroup ? '群組' : '聯絡人'}白名單移除並同步雲端！`, true);
@@ -4478,7 +5014,7 @@
         const data = await resp.json();
         if (data.ok && data.config) {
           mobileState = mergeEnvelopeState(mobileState, data.config);
-          localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+          persistStateCache();
           $id('mobile-new-pin-input').value = '';
           renderMobileState();
           if ($id('mobile-sync-badge')) {
@@ -4503,7 +5039,7 @@
     mobileState.guardian_pin_sha256_hex = hashHex;
     mobileState.parental_pin_sha256 = hashHex;
     mobileState.config_revision_ms = revMs;
-    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    persistStateCache();
     $id('mobile-new-pin-input').value = '';
     renderMobileState();
     const ok = await syncMobileCloudNow(true);
@@ -4555,34 +5091,40 @@
       syncBadge.className = 'status-pill pill-ok';
     }
     if ($id('btn-mobile-mode-active')) {
-      $id('btn-mobile-mode-active').className = 'btn ' + (mode === 'ACTIVE_BLOCKING' ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-mode-active').className = 'm-btn-flex ' + (mode === 'ACTIVE_BLOCKING' ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-mode-active').setAttribute('aria-pressed', mode === 'ACTIVE_BLOCKING' ? 'true' : 'false');
     }
     if ($id('btn-mobile-mode-stealth')) {
-      $id('btn-mobile-mode-stealth').className = 'btn ' + (mode === 'STEALTH_MONITORING' ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-mode-stealth').className = 'm-btn-flex ' + (mode === 'STEALTH_MONITORING' ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-mode-stealth').setAttribute('aria-pressed', mode === 'STEALTH_MONITORING' ? 'true' : 'false');
     }
     const lockFriendEnabled = mobileState.lock_add_friend_enabled !== false;
     const lockBadge = $id('mobile-lock-friend-badge');
     if (lockBadge) {
       lockBadge.textContent = lockFriendEnabled ? '🔒 已鎖定（禁止主動加好友／掃 QR）' : '🔓 暫時允許加好友';
-      lockBadge.style.color = lockFriendEnabled ? '#b45309' : '#64748b';
+      lockBadge.style.color = lockFriendEnabled ? '#9a3412' : '#475569';
     }
     if ($id('btn-mobile-lock-friend-on')) {
-      $id('btn-mobile-lock-friend-on').className = 'btn ' + (lockFriendEnabled ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-lock-friend-on').className = 'm-btn-flex m-btn-sm ' + (lockFriendEnabled ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-lock-friend-on').setAttribute('aria-pressed', lockFriendEnabled ? 'true' : 'false');
     }
     if ($id('btn-mobile-lock-friend-off')) {
-      $id('btn-mobile-lock-friend-off').className = 'btn ' + (!lockFriendEnabled ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-lock-friend-off').className = 'm-btn-flex m-btn-sm ' + (!lockFriendEnabled ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-lock-friend-off').setAttribute('aria-pressed', !lockFriendEnabled ? 'true' : 'false');
     }
     const callBreakerEnabled = mobileState.call_circuit_breaker_enabled !== false;
     const callBreakerBadge = $id('mobile-call-breaker-badge');
     if (callBreakerBadge) {
       callBreakerBadge.textContent = callBreakerEnabled ? '🛑 已開啟（保護網銀與驗證碼）' : '🔓 已暫時關閉熔斷保護';
-      callBreakerBadge.style.color = callBreakerEnabled ? '#be123c' : '#64748b';
+      callBreakerBadge.style.color = callBreakerEnabled ? '#b91c1c' : '#475569';
     }
     if ($id('btn-mobile-call-breaker-on')) {
-      $id('btn-mobile-call-breaker-on').className = 'btn ' + (callBreakerEnabled ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-call-breaker-on').className = 'm-btn-flex m-btn-sm ' + (callBreakerEnabled ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-call-breaker-on').setAttribute('aria-pressed', callBreakerEnabled ? 'true' : 'false');
     }
     if ($id('btn-mobile-call-breaker-off')) {
-      $id('btn-mobile-call-breaker-off').className = 'btn ' + (!callBreakerEnabled ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-call-breaker-off').className = 'm-btn-flex m-btn-sm ' + (!callBreakerEnabled ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-call-breaker-off').setAttribute('aria-pressed', !callBreakerEnabled ? 'true' : 'false');
     }
     const domainShieldEnabled = mobileState.browser_domain_shield_enabled !== false;
     const domainShieldBadge = $id('mobile-domain-shield-badge');
@@ -4591,13 +5133,15 @@
       domainShieldBadge.textContent = domainShieldEnabled
         ? `🌐 已開啟（封鎖網域 ${domainCount} 筆＋內建 165 庫）`
         : '🔓 已暫時關閉網頁防護';
-      domainShieldBadge.style.color = domainShieldEnabled ? '#4338ca' : '#64748b';
+      domainShieldBadge.style.color = domainShieldEnabled ? '#312e81' : '#475569';
     }
     if ($id('btn-mobile-domain-shield-on')) {
-      $id('btn-mobile-domain-shield-on').className = 'btn ' + (domainShieldEnabled ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-domain-shield-on').className = 'm-btn-flex m-btn-sm ' + (domainShieldEnabled ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-domain-shield-on').setAttribute('aria-pressed', domainShieldEnabled ? 'true' : 'false');
     }
     if ($id('btn-mobile-domain-shield-off')) {
-      $id('btn-mobile-domain-shield-off').className = 'btn ' + (!domainShieldEnabled ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-domain-shield-off').className = 'm-btn-flex m-btn-sm ' + (!domainShieldEnabled ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-domain-shield-off').setAttribute('aria-pressed', !domainShieldEnabled ? 'true' : 'false');
     }
     const famLabelEl = $id('mobile-family-label-input');
     if (famLabelEl && document.activeElement !== famLabelEl) {
@@ -4673,7 +5217,44 @@
           });
         }
       }
-      if (turns.length === 0) return null;
+      const isAddFriendIntercept = Boolean(item.is_add_friend_intercept || digRoom.is_add_friend_intercept)
+        || (Array.isArray(item.matched_signals) && item.matched_signals.includes('forbidden_add_friend_attempt'));
+      if (turns.length === 0) {
+        if (isAddFriendIntercept) {
+          const rlAdd = String(item.risk_level || item.severity || digRoom.risk_level || 'CRITICAL').toUpperCase().trim();
+          const card = document.createElement('div');
+          card.className = 'sim-line-chatroom-card';
+          card.setAttribute('data-chat-title', roomName);
+
+          const header = document.createElement('div');
+          header.className = 'sim-line-chatroom-header intercept-hdr';
+          const titleSpan = document.createElement('span');
+          titleSpan.textContent = `🔒 加好友前即時攔截：${roomName}`;
+          const badgeSpan = document.createElement('span');
+          badgeSpan.className = 'status-pill pill-active';
+          badgeSpan.textContent = rlAdd;
+          header.appendChild(titleSpan);
+          header.appendChild(badgeSpan);
+          card.appendChild(header);
+
+          const body = document.createElement('div');
+          body.className = 'sim-line-chatroom-body';
+          const notice = document.createElement('div');
+          notice.className = 'sim-intercept-notice';
+          const nTitle = document.createElement('div');
+          nTitle.style.fontWeight = '800';
+          nTitle.textContent = '🔒 已即時攔截加好友嘗試（尚無對話紀錄）';
+          const nDesc = document.createElement('div');
+          nDesc.style.marginTop = '3px';
+          nDesc.textContent = `「禁止加好友」安全鎖已於長輩嘗試新增「${roomName}」時自動阻斷，雙方尚未建立聊天對話氣泡。`;
+          notice.appendChild(nTitle);
+          notice.appendChild(nDesc);
+          body.appendChild(notice);
+          card.appendChild(body);
+          return card;
+        }
+        return null;
+      }
       const rl = String(item.risk_level || item.severity || digRoom.risk_level || 'HIGH').toUpperCase().trim();
       const rawKws = []
         .concat(Array.isArray(item.search_keywords) ? item.search_keywords : [])
@@ -4773,25 +5354,25 @@
       const digestObj = mobileState.daily_chat_digest || {};
       const radarData = computeMobileBehaviorRadar(digestObj, mobileState);
       const fmtDur = (sec) => (sec >= 60 ? `${Math.round(sec / 60)} 分` : `${Math.max(0, Math.round(sec))} 秒`);
-      radarBox.innerHTML = '';
+      const radarNodes = [];
       const hdr = document.createElement('div');
       hdr.style.cssText = 'font-weight:800;color:#1e3a8a;';
       hdr.textContent = '📡 今日行為雷達（點開 Top 3・陌生通話・深夜／反滅證）';
-      radarBox.appendChild(hdr);
+      radarNodes.push(hdr);
       if (!radarData.has_data) {
         const emptyEl = document.createElement('div');
-        emptyEl.style.cssText = 'color:#64748b;margin-top:3px;';
+        emptyEl.className = 'm-hint';
         emptyEl.textContent = '今日尚無點開聊天室排行、陌生通話或深夜／刪除異常紀錄（媽媽開啟 LINE 聊天室或接聽陌生通話後自動更新）。';
-        radarBox.appendChild(emptyEl);
+        radarNodes.push(emptyEl);
       } else {
         if (radarData.top_visited_chats.length > 0) {
           const secTitle = document.createElement('div');
           secTitle.style.cssText = 'font-weight:800;color:#1e40af;margin-top:4px;';
           secTitle.textContent = '🔥 今日最常點開聊天室 Top 3';
-          radarBox.appendChild(secTitle);
+          radarNodes.push(secTitle);
           radarData.top_visited_chats.forEach((it, idx) => {
             const row = document.createElement('div');
-            row.style.cssText = 'padding:3px 0;border-bottom:1px dashed #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;';
+            row.style.cssText = 'padding:3px 0;border-bottom:1px dashed #cbd5e1;display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;';
             const txt = document.createElement('span');
             const wlBadge = it.is_whitelisted ? '白名單✅' : '陌生⚠️';
             const streakBadge = (!it.is_whitelisted && it.consecutive_days >= 2) ? ` · 連 ${it.consecutive_days} 天` : '';
@@ -4802,57 +5383,88 @@
               btns.style.cssText = 'display:inline-flex;gap:4px;flex-wrap:wrap;';
               const wlBtn = document.createElement('button');
               wlBtn.type = 'button';
-              wlBtn.className = 'ok';
-              wlBtn.style.cssText = 'padding:2px 6px;font-size:0.68rem;';
+              wlBtn.className = 'ok m-btn-xs';
               wlBtn.textContent = '✅ 白名單';
-              wlBtn.onclick = () => quickAddMobileRadarWhitelist(it.chat_title);
+              wlBtn.addEventListener('click', () => quickAddMobileRadarWhitelist(it.chat_title));
               btns.appendChild(wlBtn);
               const blkBtn = document.createElement('button');
               blkBtn.type = 'button';
-              blkBtn.className = 'danger';
-              blkBtn.style.cssText = 'padding:2px 6px;font-size:0.68rem;';
+              blkBtn.className = 'danger m-btn-xs';
               blkBtn.textContent = '🧨 封鎖刪除';
-              blkBtn.onclick = () => blockAndDeleteMobileChat('', it.chat_title, it.chat_title);
+              blkBtn.addEventListener('click', async () => {
+                if (await requestConfirmAction(`確定遠端封鎖並刪除「${it.chat_title}」嗎？`)) {
+                  blockAndDeleteMobileChat('', it.chat_title, it.chat_title);
+                }
+              });
               btns.appendChild(blkBtn);
               row.appendChild(btns);
             }
-            radarBox.appendChild(row);
+            radarNodes.push(row);
           });
         }
         if (radarData.top_unwhitelisted_calls.length > 0) {
           const cTitle = document.createElement('div');
           cTitle.style.cssText = 'font-weight:800;color:#9a3412;margin-top:4px;';
           cTitle.textContent = '📞 今日非白名單通話 Top 3';
-          radarBox.appendChild(cTitle);
+          radarNodes.push(cTitle);
           radarData.top_unwhitelisted_calls.forEach((c, idx) => {
             const row = document.createElement('div');
             const cDur = Number(c.total_duration_seconds || 0);
-            row.textContent = `#${idx + 1} ${c.caller_label || c.caller} [${c.channel || 'CALL'}] · ${Number(c.call_count || 1)} 通 / ${cDur > 0 ? fmtDur(cDur) : '已記錄'}`;
-            radarBox.appendChild(row);
+            const rawCaller = String(c.caller_label || c.caller || '').trim();
+            const chUpper = String(c.channel || 'CALL').trim().toUpperCase() || 'CALL';
+            const durText = cDur > 0 ? fmtDur(cDur) : '通話紀錄';
+            if (chUpper === 'CALL' && isGenericCallerPlaceholder(rawCaller)) {
+              row.textContent = `#${idx + 1} 一般電話（系統未提供來電者） · ${Number(c.call_count || 1)} 通 / ${durText}`;
+            } else {
+              row.textContent = `#${idx + 1} ${rawCaller || '未知來電'} [${chUpper}] · ${Number(c.call_count || 1)} 通 / ${durText}`;
+            }
+            radarNodes.push(row);
           });
         }
         if (radarData.late_night_stranger_chats.length > 0 || radarData.late_night_unwhitelisted_calls.length > 0) {
           const lnDiv = document.createElement('div');
-          lnDiv.style.cssText = 'margin-top:4px;padding:3px 6px;border-radius:6px;background:#eef2ff;color:#3730a3;font-weight:700;';
+          lnDiv.style.cssText = 'margin-top:4px;padding:3px 6px;border-radius:6px;background:#eef2ff;color:#312e81;font-weight:700;';
           const parts = [
             ...radarData.late_night_stranger_chats.slice(0, 3).map(x => `💬${x.chat_title}(${x.late_night_visit_count}次)`),
-            ...radarData.late_night_unwhitelisted_calls.slice(0, 3).map(x => `📞${x.caller_label || x.caller}(${x.late_night_count}通)`),
+            ...radarData.late_night_unwhitelisted_calls.slice(0, 3).map(x => {
+              const rawLbl = String(x.caller_label || x.caller || '一般電話').trim();
+              const dispLbl = isGenericCallerPlaceholder(rawLbl) ? '一般電話（未識別來電）' : rawLbl;
+              return `📞${dispLbl}(${x.late_night_count}通)`;
+            }),
           ];
           lnDiv.textContent = `🌙 深夜陌生互動 (22:00–06:00)：${parts.join('｜')}`;
-          radarBox.appendChild(lnDiv);
+          radarNodes.push(lnDiv);
         }
         if (radarData.delete_or_unsent_events.length > 0) {
-          const delDiv = document.createElement('div');
-          delDiv.style.cssText = 'margin-top:4px;padding:3px 6px;border-radius:6px;background:#fee2e2;color:#991b1b;font-weight:700;';
+          let hasSevereTamper = false;
           const dParts = radarData.delete_or_unsent_events.slice(0, 3).map(ev => {
             const et = String(ev.event_type || '').toUpperCase();
-            const label = et === 'CHAT_DELETE_ATTEMPT' ? '嘗試刪除聊天室' : (et === 'CLEAR_CHAT_HISTORY' ? '清除對話紀錄' : `多次收回訊息(${Number(ev.unsent_count || 0)}則)`);
+            const uCnt = Number(ev.unsent_count || 0);
+            let label = et || '異常操作';
+            if (et === 'CHAT_DELETE_ATTEMPT') {
+              label = '嘗試刪除聊天室';
+              hasSevereTamper = true;
+            } else if (et === 'CLEAR_CHAT_HISTORY') {
+              label = '清除對話紀錄';
+              hasSevereTamper = true;
+            } else if (et === 'UNSENT_MESSAGES_BURST') {
+              label = `多次收回訊息(${uCnt}則)`;
+              if (uCnt >= 3) hasSevereTamper = true;
+            } else {
+              hasSevereTamper = true;
+            }
             return `${ev.chat_title}(${label})`;
           });
-          delDiv.textContent = `🗑️ 反滅證異常偵測：${dParts.join('｜')}`;
-          radarBox.appendChild(delDiv);
+          const delDiv = document.createElement('div');
+          delDiv.style.cssText = hasSevereTamper
+            ? 'margin-top:4px;padding:3px 6px;border-radius:6px;background:#fee2e2;color:#7f1d1d;font-weight:700;'
+            : 'margin-top:4px;padding:3px 6px;border-radius:6px;background:#fef3c7;color:#78350f;font-weight:700;';
+          const prefixDel = hasSevereTamper ? '🗑️ 反滅證異常偵測：' : '💬 對話收回訊息提示：';
+          delDiv.textContent = `${prefixDel}${dParts.join('｜')}`;
+          radarNodes.push(delDiv);
         }
       }
+      radarBox.replaceChildren(...radarNodes);
     }
 
     const auditBox = $id('mobile-llm-audit-box');
@@ -4910,7 +5522,7 @@
         return Number(b.risk_score || 0) - Number(a.risk_score || 0);
       });
       const simPreviewEl = $id('mobile-llm-chat-bubble-preview');
-      if (simPreviewEl) simPreviewEl.innerHTML = '';
+      if (simPreviewEl) simPreviewEl.replaceChildren();
       if (suspFindings.length > 0) {
         for (const sf of suspFindings.slice(0, 5)) {
           const simCard = buildMobileSimulatedLineChatElement(sf, digestChatsMap, 8);
@@ -4927,17 +5539,19 @@
           if (!roomName) continue;
           const blkBtn = document.createElement('button');
           blkBtn.type = 'button';
-          blkBtn.className = 'btn btn-danger';
-          blkBtn.style.cssText = 'padding:5px 8px;font-size:0.75rem;';
+          blkBtn.className = 'danger m-btn-sm';
           blkBtn.textContent = `🧨 遠端封鎖並刪除「${roomName}」`;
-          blkBtn.onclick = () => blockAndDeleteMobileChat('', roomName, roomName);
+          blkBtn.addEventListener('click', async () => {
+            if (await requestConfirmAction(`確定遠端封鎖並刪除「${roomName}」嗎？`)) {
+              blockAndDeleteMobileChat('', roomName, roomName);
+            }
+          });
           actionRow.appendChild(blkBtn);
           const fpBtn = document.createElement('button');
           fpBtn.type = 'button';
-          fpBtn.className = 'btn btn-secondary';
-          fpBtn.style.cssText = 'padding:5px 8px;font-size:0.75rem;';
+          fpBtn.className = 'secondary m-btn-sm';
           fpBtn.textContent = `🚫 標記「${roomName}」為誤報`;
-          fpBtn.onclick = () => markMobileAlertFalsePositive('', roomName, roomName);
+          fpBtn.addEventListener('click', () => markMobileAlertFalsePositive('', roomName, roomName));
           actionRow.appendChild(fpBtn);
         }
         auditBox.appendChild(actionRow);
@@ -4972,10 +5586,12 @@
     const dcSumEl = $id('mobile-daily-check-summary');
     const reqEnabled = (dc.daily_check_required_enabled !== undefined ? dc.daily_check_required_enabled : dc.required_enabled) !== false;
     if ($id('btn-mobile-daily-check-req-on')) {
-      $id('btn-mobile-daily-check-req-on').className = 'btn ' + (reqEnabled ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-daily-check-req-on').className = 'm-btn-xs ' + (reqEnabled ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-daily-check-req-on').setAttribute('aria-pressed', reqEnabled ? 'true' : 'false');
     }
     if ($id('btn-mobile-daily-check-req-off')) {
-      $id('btn-mobile-daily-check-req-off').className = 'btn ' + (!reqEnabled ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-daily-check-req-off').className = 'm-btn-xs ' + (!reqEnabled ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-daily-check-req-off').setAttribute('aria-pressed', !reqEnabled ? 'true' : 'false');
     }
     const cmdForDc = mobileState.remote_lock_command || {};
     const cmdReqMs = Number(cmdForDc.requested_at_ms || 0);
@@ -5094,25 +5710,34 @@
     const pct = Math.min(100, Math.round((usedCnt / limitCnt) * 100));
     const policy = String(quota.push_policy || 'ALL_ALERTS');
     if ($id('btn-mobile-policy-all')) {
-      $id('btn-mobile-policy-all').className = 'btn ' + (policy === 'ALL_ALERTS' ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-policy-all').className = 'm-btn-xs ' + (policy === 'ALL_ALERTS' ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-policy-all').setAttribute('aria-pressed', policy === 'ALL_ALERTS' ? 'true' : 'false');
     }
     if ($id('btn-mobile-policy-high')) {
-      $id('btn-mobile-policy-high').className = 'btn ' + (policy === 'HIGH_CRITICAL_ONLY' ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-policy-high').className = 'm-btn-xs ' + (policy === 'HIGH_CRITICAL_ONLY' ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-policy-high').setAttribute('aria-pressed', policy === 'HIGH_CRITICAL_ONLY' ? 'true' : 'false');
     }
     if ($id('btn-mobile-policy-zero')) {
-      $id('btn-mobile-policy-zero').className = 'btn ' + (policy === 'ZERO_PUSH_REPLY_ONLY' ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-policy-zero').className = 'm-btn-xs ' + (policy === 'ZERO_PUSH_REPLY_ONLY' ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-policy-zero').setAttribute('aria-pressed', policy === 'ZERO_PUSH_REPLY_ONLY' ? 'true' : 'false');
     }
     if ($id('btn-mobile-policy-daily')) {
-      $id('btn-mobile-policy-daily').className = 'btn ' + (policy === 'DAILY_REPORT_ONLY' ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-policy-daily').className = 'm-btn-xs ' + (policy === 'DAILY_REPORT_ONLY' ? 'btn-primary' : 'btn-secondary');
+      $id('btn-mobile-policy-daily').setAttribute('aria-pressed', policy === 'DAILY_REPORT_ONLY' ? 'true' : 'false');
     }
     if ($id('mobile-quota-text')) {
       const prefix = usedCnt >= limitCnt ? '🚫 免費額度已用罄' : (pct >= 95 ? '🚨 額度告急' : (pct >= 80 ? '⚠️ 額度預警(>=80%)' : '🟢 額度充足'));
       $id('mobile-quota-text').textContent = `${prefix}：本月 LINE 免費推播已用 ${usedCnt}/${limitCnt} 則（剩 ${remCnt} 則）｜策略：${policy}`;
-      $id('mobile-quota-text').style.color = pct >= 95 ? '#dc2626' : (pct >= 80 ? '#b45309' : '#1e40af');
+      $id('mobile-quota-text').style.color = pct >= 95 ? '#b91c1c' : (pct >= 80 ? '#92400e' : '#1e40af');
     }
-    if ($id('mobile-quota-bar')) {
-      $id('mobile-quota-bar').style.width = `${Math.max(2, pct)}%`;
-      $id('mobile-quota-bar').style.background = pct >= 95 ? '#dc2626' : (pct >= 80 ? '#d97706' : '#2563eb');
+    const quotaMeter = $id('mobile-quota-bar');
+    if (quotaMeter) {
+      quotaMeter.max = limitCnt;
+      quotaMeter.low = Math.round(limitCnt * 0.6);
+      quotaMeter.high = Math.round(limitCnt * 0.8);
+      quotaMeter.optimum = 0;
+      quotaMeter.value = usedCnt;
+      quotaMeter.textContent = `${usedCnt} / ${limitCnt} 則`;
     }
 
     // Remote lock status
@@ -5148,26 +5773,34 @@
       );
     }
 
+    const makeEmptySpan = (txt) => {
+      const sp = document.createElement('span');
+      sp.className = 'm-empty-chip';
+      sp.textContent = txt;
+      return sp;
+    };
+
     // Whitelist chips
     const renderChips = (containerId, items, isGroup) => {
       const el = $id(containerId);
       if (!el) return;
-      el.innerHTML = '';
       if (!items || !items.length) {
-        el.innerHTML = '<span style="font-size:0.75rem;color:#94a3b8;">（尚未設定）</span>';
+        el.replaceChildren(makeEmptySpan('（尚未設定）'));
         return;
       }
-      for (const name of items) {
+      const nodes = items.map(name => {
         const chip = document.createElement('span');
         chip.className = 'm-chip' + (isGroup ? ' group' : '');
         chip.textContent = (isGroup ? '👨‍👩‍👧‍👦 ' : '👤 ') + name + ' ';
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.textContent = '×';
-        btn.onclick = () => removeMobileWhitelist(name, isGroup);
+        btn.setAttribute('aria-label', `從白名單移除「${name}」`);
+        btn.addEventListener('click', () => removeMobileWhitelist(name, isGroup));
         chip.appendChild(btn);
-        el.appendChild(chip);
-      }
+        return chip;
+      });
+      el.replaceChildren(...nodes);
     };
     renderChips('mobile-contact-chips', mobileState.whitelist_contacts || [], false);
     renderChips('mobile-group-chips', mobileState.whitelist_groups || [], true);
@@ -5175,57 +5808,51 @@
     const fpEl = $id('mobile-fp-chips');
     if (fpEl) {
       const fpItems = mobileState.false_positive_exclusions || [];
-      fpEl.innerHTML = '';
       if (!fpItems.length) {
-        fpEl.innerHTML = '<span style="font-size:0.75rem;color:#94a3b8;">（尚未標記誤報／廣告豁免對象）</span>';
+        fpEl.replaceChildren(makeEmptySpan('（尚未標記誤報／廣告豁免對象）'));
       } else {
-        for (const name of fpItems) {
+        fpEl.replaceChildren(...fpItems.map(name => {
           const chip = document.createElement('span');
-          chip.className = 'm-chip';
-          chip.style.cssText = 'background:#fef3c7;border-color:#f59e0b;color:#92400e;';
+          chip.className = 'm-chip fp';
           chip.textContent = '🏷️ ' + name;
-          fpEl.appendChild(chip);
-        }
+          return chip;
+        }));
       }
     }
 
     const blockedEl = $id('mobile-blocked-chips');
     if (blockedEl) {
       const blockedItems = mobileState.blocked_scam_contacts || [];
-      blockedEl.innerHTML = '';
       if (!blockedItems.length) {
-        blockedEl.innerHTML = '<span style="font-size:0.75rem;color:#94a3b8;">（尚未下達遠端封鎖＋刪除對象）</span>';
+        blockedEl.replaceChildren(makeEmptySpan('（尚未下達遠端封鎖＋刪除對象）'));
       } else {
-        for (const name of blockedItems) {
+        blockedEl.replaceChildren(...blockedItems.map(name => {
           const chip = document.createElement('span');
-          chip.className = 'm-chip';
-          chip.style.cssText = 'background:#fee2e2;border-color:#ef4444;color:#991b1b;';
+          chip.className = 'm-chip blocked';
           chip.textContent = '🧨 ' + name;
-          blockedEl.appendChild(chip);
-        }
+          return chip;
+        }));
       }
     }
 
     const blockedDomEl = $id('mobile-blocked-domains-chips');
     if (blockedDomEl) {
       const blockedDomains = mobileState.blocked_scam_domains || [];
-      blockedDomEl.innerHTML = '';
       if (!blockedDomains.length) {
-        blockedDomEl.innerHTML = '<span style="font-size:0.75rem;color:#6366f1;">（已內建 165 核心詐騙網域；點「🔄 同步 165 網址」或手動新增）</span>';
+        blockedDomEl.replaceChildren(makeEmptySpan('（已內建 165 核心詐騙網域；點「🔄 同步 165 網址」或手動新增）'));
       } else {
-        for (const dom of blockedDomains) {
+        blockedDomEl.replaceChildren(...blockedDomains.map(dom => {
           const chip = document.createElement('span');
-          chip.className = 'm-chip';
-          chip.style.cssText = 'background:#e0e7ff;border-color:#6366f1;color:#312e81;';
+          chip.className = 'm-chip domain';
           chip.textContent = '🌐 ' + dom + ' ';
           const xBtn = document.createElement('button');
           xBtn.type = 'button';
           xBtn.textContent = '×';
-          xBtn.style.cssText = 'background:transparent;border:none;color:#312e81;font-weight:800;cursor:pointer;padding:0 2px;';
-          xBtn.onclick = () => removeMobileBlockedDomain(dom);
+          xBtn.setAttribute('aria-label', `解除封鎖網址「${dom}」`);
+          xBtn.addEventListener('click', () => removeMobileBlockedDomain(dom));
           chip.appendChild(xBtn);
-          blockedDomEl.appendChild(chip);
-        }
+          return chip;
+        }));
       }
     }
 
@@ -5241,10 +5868,13 @@
     const listEl = $id('mobile-timeline-list');
     if (listEl) {
       if (!alerts.length) {
-        listEl.innerHTML = '<div style="color:#64748b;font-size:0.8rem;text-align:center;padding:12px;">🎉 目前沒有可疑對話或防篡改警報。</div>';
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'm-empty';
+        emptyDiv.textContent = '🎉 目前沒有可疑對話或防篡改警報。';
+        listEl.replaceChildren(emptyDiv);
       } else {
-        listEl.innerHTML = '';
-        for (const a of [...alerts].reverse().slice(0, 20)) {
+        const alertCards = [];
+        for (const a of alerts.toReversed().slice(0, 20)) {
           const lvl = String(a.risk_level || 'MEDIUM').toUpperCase();
           const alertId = String(a.alert_id || '');
           const chatTitle = String(a.chat_title || '未知對話');
@@ -5320,34 +5950,35 @@
 
           const btnClaim = document.createElement('button');
           btnClaim.type = 'button';
-          btnClaim.className = 'ok';
-          btnClaim.style.cssText = 'padding:4px 8px;font-size:0.71rem;';
+          btnClaim.className = 'ok m-btn-xs';
           btnClaim.textContent = '✋ 我來處理';
-          btnClaim.onclick = () => claimMobileAlert(alertId, chatTitle);
+          btnClaim.addEventListener('click', () => claimMobileAlert(alertId, chatTitle));
 
           const shareText = a.line_group_message_text || a.formatted_message || `🛡️【長輩防詐警報】對象：${chatTitle}${senderSuffix}｜風險：${lvl}｜摘要：${summaryTxt}`;
           const shareLink = document.createElement('a');
           shareLink.href = a.line_share_deep_link || (aMeta && aMeta.line_share_deep_link) || ('https://line.me/R/msg/text/?' + encodeURIComponent(shareText));
           shareLink.target = '_blank';
           shareLink.rel = 'noopener';
-          shareLink.style.cssText = 'background:#06c755;color:#fff;text-decoration:none;padding:4px 8px;border-radius:8px;font-weight:800;font-size:0.71rem;';
+          shareLink.className = 'share-line-pill';
           shareLink.textContent = '💬 免額度轉傳 LINE';
 
           actionsRow.appendChild(btnClaim);
           if (!isSysOrTamperCard) {
             const btnFp = document.createElement('button');
             btnFp.type = 'button';
-            btnFp.className = 'secondary';
-            btnFp.style.cssText = 'padding:4px 8px;font-size:0.71rem;';
+            btnFp.className = 'secondary m-btn-xs';
             btnFp.textContent = '🚫 這是廣告／誤報';
-            btnFp.onclick = () => markMobileAlertFalsePositive(alertId, chatTitle, senderName);
+            btnFp.addEventListener('click', () => markMobileAlertFalsePositive(alertId, chatTitle, senderName));
 
             const btnBlockDelete = document.createElement('button');
             btnBlockDelete.type = 'button';
-            btnBlockDelete.className = 'danger';
-            btnBlockDelete.style.cssText = 'padding:4px 8px;font-size:0.71rem;';
+            btnBlockDelete.className = 'danger m-btn-xs';
             btnBlockDelete.textContent = '🧨 遠端封鎖並刪除';
-            btnBlockDelete.onclick = () => blockAndDeleteMobileChat(alertId, chatTitle, senderName);
+            btnBlockDelete.addEventListener('click', async () => {
+              if (await requestConfirmAction(`確定遠端封鎖並刪除「${chatTitle}」嗎？`)) {
+                blockAndDeleteMobileChat(alertId, chatTitle, senderName);
+              }
+            });
 
             actionsRow.appendChild(btnFp);
             actionsRow.appendChild(btnBlockDelete);
@@ -5363,8 +5994,9 @@
             if (simAlertCard) div.appendChild(simAlertCard);
           }
           div.appendChild(actionsRow);
-          listEl.appendChild(div);
+          alertCards.push(div);
         }
+        listEl.replaceChildren(...alertCards);
       }
     }
   }
@@ -5394,7 +6026,8 @@
 
   async function refreshMobileLineWebStatus() {
     try {
-      const resp = await fetch('/api/line-web/status');
+      const resp = await fetchWithTimeout('/api/line-web/status');
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const data = await resp.json();
       updateMobileLineWebUi(data);
       setBanner('mobile-line-web-output', data.login_state_zh || '✅ 已同步 LINE 電腦版延伸模組狀態', true);
@@ -5408,11 +6041,12 @@
   async function startMobileLineWebInspector() {
     setBanner('mobile-line-web-output', '⏳ 正在啟動 Cloudtop LINE 官方 Chrome 延伸模組…', null);
     try {
-      const resp = await fetch('/api/line-web/start', {
+      const resp = await fetchWithTimeout('/api/line-web/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const data = await resp.json();
       updateMobileLineWebUi(data);
       setBanner('mobile-line-web-output', data.login_state_zh || (data.ok ? '✅ 已啟動' : ('❌ 啟動失敗：' + (data.error || ''))), !!data.ok);
@@ -5426,11 +6060,12 @@
   async function switchMobileLineWebQr() {
     setBanner('mobile-line-web-output', '📱 正在切換為 QR Code 掃碼登入畫面…', null);
     try {
-      const resp = await fetch('/api/line-web/action', {
+      const resp = await fetchWithTimeout('/api/line-web/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'switch_qr' }),
       });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const data = await resp.json();
       updateMobileLineWebUi(data);
       setBanner('mobile-line-web-output', data.login_state_zh || '📱 請使用媽媽手機掃描上方 QR Code', !!data.ok);
@@ -5450,11 +6085,12 @@
     }
     setBanner('mobile-line-web-output', '🔐 正在送出 LINE 電腦版帳號密碼登入（請準備在媽媽手機查看 4~6 位數驗證碼）…', null);
     try {
-      const resp = await fetch('/api/line-web/action', {
+      const resp = await fetchWithTimeout('/api/line-web/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'login_credentials', email, password }),
       });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const data = await resp.json();
       if ($id('mobile-line-web-password-input')) $id('mobile-line-web-password-input').value = '';
       updateMobileLineWebUi(data);
@@ -5469,19 +6105,24 @@
   }
 
   async function clickMobileLineWebScreenshot(ev) {
-    const img = ev.currentTarget;
+    const img = $id('mobile-line-web-screenshot');
     if (!img) return;
     const rect = img.getBoundingClientRect();
     const scaleX = (img.naturalWidth || rect.width) / Math.max(1, rect.width);
     const scaleY = (img.naturalHeight || rect.height) / Math.max(1, rect.height);
-    const x = Math.round((ev.clientX - rect.left) * scaleX);
-    const y = Math.round((ev.clientY - rect.top) * scaleY);
+    const x = ev && typeof ev.clientX === 'number'
+      ? Math.round((ev.clientX - rect.left) * scaleX)
+      : Math.round((img.naturalWidth || rect.width) / 2);
+    const y = ev && typeof ev.clientY === 'number'
+      ? Math.round((ev.clientY - rect.top) * scaleY)
+      : Math.round((img.naturalHeight || rect.height) / 2);
     try {
-      const resp = await fetch('/api/line-web/action', {
+      const resp = await fetchWithTimeout('/api/line-web/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'click', x, y }),
       });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const data = await resp.json();
       updateMobileLineWebUi(data);
       setBanner('mobile-line-web-output', `🖱️ 已點擊座標 (${x}, ${y})`, !!data.ok);
@@ -5495,11 +6136,12 @@
   async function scanMobileLineWebChatsNow() {
     setBanner('mobile-line-web-output', '🔍 正在從 Cloudtop LINE 電腦版擷取最近聊天室對話並執行 AI 防詐檢查…', null);
     try {
-      const resp = await fetch('/api/line-web/scan-now', {
+      const resp = await fetchWithTimeout('/api/line-web/scan-now', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ run_audit: true }),
-      });
+      }, 45000);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const data = await resp.json();
       updateMobileLineWebUi(data);
       if (!data.ok) {
@@ -5518,7 +6160,7 @@
         if (data.status && data.status.daily_chat_digest && typeof data.status.daily_chat_digest === 'object') {
           mobileState.daily_chat_digest = data.status.daily_chat_digest;
         }
-        localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+        persistStateCache();
         renderMobileState();
         if ($id('mobile-sync-badge')) {
           $id('mobile-sync-badge').textContent = '🟢 已同步';
@@ -5535,8 +6177,124 @@
     }
   }
 
+  let activeConfirmResolve = null;
+
+  function requestConfirmAction(message) {
+    const dlg = $id('confirmActionDialog');
+    const desc = $id('confirmDialogDesc');
+    if (!dlg || typeof dlg.showModal !== 'function') {
+      return Promise.resolve(true);
+    }
+    if (activeConfirmResolve) {
+      activeConfirmResolve(false);
+      activeConfirmResolve = null;
+    }
+    if (desc) desc.textContent = String(message || '確定執行此高影響操作嗎？');
+    return new Promise((resolve) => {
+      activeConfirmResolve = resolve;
+      const onClose = () => {
+        dlg.removeEventListener('close', onClose);
+        const confirmed = dlg.returnValue === 'confirm';
+        activeConfirmResolve = null;
+        resolve(confirmed);
+      };
+      dlg.addEventListener('close', onClose);
+      try {
+        dlg.showModal();
+      } catch (e) {
+        dlg.removeEventListener('close', onClose);
+        activeConfirmResolve = null;
+        resolve(true);
+      }
+    });
+  }
+
+  async function dispatchMobileUiAction(action, arg, triggerEl, eventObj) {
+    switch (action) {
+      case 'triggerMobileRemoteLock': return await triggerMobileRemoteLock();
+      case 'triggerMobileRemoteUnlock': return await triggerMobileRemoteUnlock();
+      case 'syncMobileCloudNow': return await syncMobileCloudNow(arg === 'true');
+      case 'setMobileDailyCheckRequired': return await setMobileDailyCheckRequired(arg === 'true');
+      case 'setMobilePushPolicy': return await setMobilePushPolicy(arg || 'ALL_ALERTS');
+      case 'generateMobileWeeklySummary': return generateMobileWeeklySummary();
+      case 'setMobileMode': return await setMobileMode(arg || 'ACTIVE_BLOCKING');
+      case 'setMobileLockAddFriend': return await setMobileLockAddFriend(arg === 'true');
+      case 'setMobileCallCircuitBreaker': return await setMobileCallCircuitBreaker(arg === 'true');
+      case 'setMobileBrowserDomainShield': return await setMobileBrowserDomainShield(arg === 'true');
+      case 'syncMobile165Domains': return await syncMobile165Domains();
+      case 'addMobileBlockedDomain': return await addMobileBlockedDomain();
+      case 'saveMobileFamilyPhone': return await saveMobileFamilyPhone();
+      case 'runMobileLlmAudit': return await runMobileLlmAudit();
+      case 'addMobileWhitelistContact': return await addMobileWhitelist(false);
+      case 'addMobileWhitelistGroup': return await addMobileWhitelist(true);
+      case 'blockAndDeleteMobileFromInput': return await blockAndDeleteMobileFromInput();
+      case 'updateMobileGuardianPin': return await updateMobileGuardianPin();
+      case 'refreshMobileLineWebStatus': return await refreshMobileLineWebStatus();
+      case 'startMobileLineWebInspector': return await startMobileLineWebInspector();
+      case 'switchMobileLineWebQr': return await switchMobileLineWebQr();
+      case 'scanMobileLineWebChatsNow': return await scanMobileLineWebChatsNow();
+      case 'loginMobileLineWebWithCredentials': return await loginMobileLineWebWithCredentials();
+      case 'clickMobileLineWebScreenshot': return await clickMobileLineWebScreenshot(eventObj);
+      case 'importMobileSetupCode': return await importMobileSetupCode();
+      case 'saveMobileKeysAndSync': return await saveMobileKeysAndSync();
+      case 'clearMobileKeys': return clearMobileKeys();
+      case 'togglePasswordVisibility': {
+        const targetId = triggerEl ? triggerEl.getAttribute('data-target') : '';
+        const inputEl = targetId ? $id(targetId) : null;
+        if (inputEl && triggerEl) {
+          const show = inputEl.type === 'password';
+          inputEl.type = show ? 'text' : 'password';
+          triggerEl.setAttribute('aria-pressed', show ? 'true' : 'false');
+          triggerEl.textContent = show ? '🙈' : '👁️';
+        }
+        return;
+      }
+      default:
+        return;
+    }
+  }
+
   window.addEventListener('DOMContentLoaded', () => {
     loadStoredKeys();
+    const screenshotEl = $id('mobile-line-web-screenshot');
+    if (screenshotEl) {
+      screenshotEl.addEventListener('error', () => {
+        screenshotEl.style.display = 'none';
+      });
+      screenshotEl.addEventListener('keydown', async (ev) => {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          await clickMobileLineWebScreenshot(null);
+        }
+      });
+    }
+
+    document.addEventListener('click', async (ev) => {
+      const actionEl = ev.target && ev.target.closest ? ev.target.closest('[data-action]') : null;
+      if (!actionEl) return;
+      const action = actionEl.getAttribute('data-action');
+      if (!action) return;
+      const confirmMsg = actionEl.getAttribute('data-confirm');
+      if (confirmMsg) {
+        const ok = await requestConfirmAction(confirmMsg);
+        if (!ok) return;
+      }
+      await dispatchMobileUiAction(action, actionEl.getAttribute('data-arg') || '', actionEl, ev);
+    });
+
+    document.addEventListener('submit', async (ev) => {
+      const formEl = ev.target;
+      if (!formEl || !formEl.getAttribute) return;
+      const formAction = formEl.getAttribute('data-form-action');
+      if (!formAction) return;
+      ev.preventDefault();
+      if (formAction === 'triggerMobileRemoteLock') {
+        const ok = await requestConfirmAction('確定立即遠端鎖定媽媽手機嗎？鎖定後媽媽手機會全畫面紅底鎖定且無法按返回桌面，直到您遠端解除鎖定或輸入 6 位數家長密碼。');
+        if (!ok) return;
+      }
+      await dispatchMobileUiAction(formAction, '', formEl, ev);
+    });
+
     const initCfg = getActiveConfigInputs();
     if (initCfg.lineToken) {
       syncMobileCloudNow(false).catch(() => {});
@@ -5552,6 +6310,6 @@
       else renderMobileHeartbeatText();
     }, 30000);
   });
-  </script>
+</script>
 </body>
 </html>
