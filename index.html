@@ -215,11 +215,11 @@
     }
   </style>
 </head>
-<body id="mobileGuardianPage" data-page="mobile-guardian" data-release-version="v1.0.94" data-version-code="96">
+<body id="mobileGuardianPage" data-page="mobile-guardian" data-release-version="v1.0.95" data-version-code="97">
   <div class="m-wrap">
     <header class="m-header">
       <h1>
-        <span>📱 長輩防詐隨身守護頁 <small style="font-size:0.72rem;opacity:0.9;">v1.0.94</small></span>
+        <span>📱 長輩防詐隨身守護頁 <small style="font-size:0.72rem;opacity:0.9;">v1.0.95</small></span>
         <span id="mobile-sync-badge" class="status-pill pill-warn">尚未同步</span>
       </h1>
       <div class="sub">
@@ -352,6 +352,7 @@
 
       <div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#eff6ff;border:1px solid #93c5fd;">
         <div style="font-weight:800;font-size:0.8rem;color:#1e40af;">🧠 每日打包 LINE 聊天紀錄送交 LLM 深度檢查</div>
+        <div id="mobile-behavior-radar-box" style="font-size:0.72rem;background:#ffffff;border:1px solid #bfdbfe;border-radius:8px;padding:6px 8px;margin-top:5px;color:#1e293b;">📡 同步雲端後將顯示今日最常點開聊天室 Top 3、陌生通話與深夜／刪除行為雷達。</div>
         <div id="mobile-llm-audit-box" style="font-size:0.73rem;color:#1e293b;margin-top:4px;white-space:pre-line;">尚無 AI 深度審查報告。</div>
         <div id="mobile-llm-chat-bubble-preview">
           <div class="sim-line-chatroom-card" data-chat-title="仿真 LINE 聊天室氣泡預覽">
@@ -1639,6 +1640,37 @@
           .pop() || realTodayKey);
     const lValid = (lDate === todayKey);
     const rValid = (rDate === todayKey);
+    const mergeRecentDatesMaps = (mA, mB) => {
+      let cutoffDate = '';
+      try {
+        const parts = todayKey.split('-').map(Number);
+        if (parts.length === 3 && !Number.isNaN(parts[0])) {
+          const dt = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+          dt.setUTCDate(dt.getUTCDate() - 13);
+          cutoffDate = dt.toISOString().slice(0, 10);
+        }
+      } catch (e) {
+        cutoffDate = '';
+      }
+      const outMap = {};
+      for (const srcMap of [mA, mB]) {
+        if (!srcMap || typeof srcMap !== 'object' || Array.isArray(srcMap)) continue;
+        for (const [k, rawDates] of Object.entries(srcMap)) {
+          const cleanK = String(k || '').trim();
+          if (!cleanK || !Array.isArray(rawDates)) continue;
+          const curSet = new Set(outMap[cleanK] || []);
+          for (const rawD of rawDates) {
+            const dStr = String(rawD || '').trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dStr) && (!cutoffDate || dStr >= cutoffDate)) {
+              curSet.add(dStr);
+            }
+          }
+          const sortedDates = Array.from(curSet).sort().slice(-14);
+          if (sortedDates.length) outMap[cleanK] = sortedDates;
+        }
+      }
+      return outMap;
+    };
     const inputChatsIsObjectMap = Boolean(
       (l.chats && typeof l.chats === 'object' && !Array.isArray(l.chats)) ||
       (r.chats && typeof r.chats === 'object' && !Array.isArray(r.chats))
@@ -1653,6 +1685,9 @@
         chats: inputChatsIsObjectMap ? {} : [],
         today_added_friends: [],
         today_system_logs: [],
+        today_unwhitelisted_calls: [],
+        today_delete_events: [],
+        contact_recent_dates: mergeRecentDatesMaps(l.contact_recent_dates, r.contact_recent_dates),
       };
     }
     const normalizeChatsList = (cRaw) => {
@@ -1741,6 +1776,11 @@
             last_seen_ms: seenMs,
             messages: cleanMsgs,
             dialogue_turns: mergeTurnArrays([], item.dialogue_turns, cleanMsgs),
+            open_count: Math.max(0, Number(item.open_count || 0)),
+            dwell_seconds: Math.max(0, Number(item.dwell_seconds || 0)),
+            mom_reply_count: Math.max(0, Number(item.mom_reply_count || 0)),
+            late_night_visit_count: Math.max(0, Number(item.late_night_visit_count || 0)),
+            unsent_count: Math.max(0, Number(item.unsent_count || 0)),
           });
         } else {
           const bestSeen = Math.max(Number(prev.updated_at_ms || 0), seenMs);
@@ -1758,6 +1798,11 @@
           }
           prev.messages = Array.from(new Set(cleanedCombined)).slice(-35);
           prev.dialogue_turns = mergeTurnArrays(prev.dialogue_turns, item.dialogue_turns, prev.messages);
+          prev.open_count = Math.max(Number(prev.open_count || 0), Math.max(0, Number(item.open_count || 0)));
+          prev.dwell_seconds = Math.max(Number(prev.dwell_seconds || 0), Math.max(0, Number(item.dwell_seconds || 0)));
+          prev.mom_reply_count = Math.max(Number(prev.mom_reply_count || 0), Math.max(0, Number(item.mom_reply_count || 0)));
+          prev.late_night_visit_count = Math.max(Number(prev.late_night_visit_count || 0), Math.max(0, Number(item.late_night_visit_count || 0)));
+          prev.unsent_count = Math.max(Number(prev.unsent_count || 0), Math.max(0, Number(item.unsent_count || 0)));
         }
       }
     }
@@ -1905,6 +1950,76 @@
     for (const k of Object.keys(mergedSigs)) {
       if (!k || k.length <= 1 || isNonChatSubScreenOrMenuTitle(k) || isSystemNoiseAlertItem({ chat_title: k, sender_name: k })) delete mergedSigs[k];
     }
+    const byCall = new Map();
+    const callSources = [];
+    if (lValid && Array.isArray(l.today_unwhitelisted_calls)) callSources.push(l.today_unwhitelisted_calls);
+    if (rValid && Array.isArray(r.today_unwhitelisted_calls)) callSources.push(r.today_unwhitelisted_calls);
+    for (const cSrc of callSources) {
+      for (const cItem of cSrc) {
+        if (!cItem || typeof cItem !== 'object') continue;
+        const caller = String(cItem.caller_label || cItem.caller || '').trim();
+        if (!caller) continue;
+        const ch = String(cItem.channel || 'CALL').trim().toUpperCase() || 'CALL';
+        const cKey = `${ch}|${caller.toLowerCase()}`;
+        const cCnt = Math.max(1, Number(cItem.call_count || 1));
+        const cDur = Math.max(0, Math.min(86400, Number(cItem.total_duration_seconds || 0)));
+        const cLate = Math.max(0, Number(cItem.late_night_count || 0));
+        const cLast = Math.max(0, Number(cItem.last_call_at_ms || 0));
+        const prevC = byCall.get(cKey);
+        if (!prevC) {
+          byCall.set(cKey, {
+            caller_label: caller,
+            channel: ch,
+            call_count: cCnt,
+            total_duration_seconds: cDur,
+            late_night_count: cLate,
+            last_call_at_ms: cLast,
+          });
+        } else {
+          prevC.call_count = Math.max(prevC.call_count, cCnt);
+          prevC.total_duration_seconds = Math.max(prevC.total_duration_seconds, cDur);
+          prevC.late_night_count = Math.max(prevC.late_night_count, cLate);
+          prevC.last_call_at_ms = Math.max(prevC.last_call_at_ms, cLast);
+        }
+      }
+    }
+    const mergedDeleteEvents = [];
+    const delSources = [];
+    if (lValid && Array.isArray(l.today_delete_events)) delSources.push(l.today_delete_events);
+    if (rValid && Array.isArray(r.today_delete_events)) delSources.push(r.today_delete_events);
+    for (const dSrc of delSources) {
+      for (const dItem of dSrc) {
+        if (!dItem || typeof dItem !== 'object') continue;
+        const et = String(dItem.event_type || '').trim().toUpperCase();
+        const title = String(dItem.chat_title || '').trim();
+        if (!et || !title) continue;
+        const epMs = Math.max(0, Number(dItem.epoch_ms || 0));
+        const uCnt = Math.max(0, Number(dItem.unsent_count || 0));
+        const detail = String(dItem.detail_zh || dItem.summary || '').trim();
+        let dup = null;
+        for (const prevD of mergedDeleteEvents) {
+          if (prevD.event_type === et && prevD.chat_title.toLowerCase() === title.toLowerCase()) {
+            if (et === 'UNSENT_MESSAGES_BURST' || Math.abs(Number(prevD.epoch_ms || 0) - epMs) < 60000) {
+              dup = prevD;
+              break;
+            }
+          }
+        }
+        if (dup) {
+          dup.unsent_count = Math.max(dup.unsent_count, uCnt);
+          dup.epoch_ms = Math.max(dup.epoch_ms, epMs);
+          if (detail && !dup.detail_zh) dup.detail_zh = detail;
+        } else {
+          mergedDeleteEvents.push({
+            event_type: et,
+            chat_title: title,
+            detail_zh: detail,
+            unsent_count: uCnt,
+            epoch_ms: epMs,
+          });
+        }
+      }
+    }
     return {
       date_key: todayKey,
       date: todayKey,
@@ -1914,6 +2029,9 @@
       chats: inputChatsIsObjectMap ? Object.fromEntries(byTitle.entries()) : Array.from(byTitle.values()),
       today_added_friends: Array.from(byFriend.values()),
       today_system_logs: Array.from(bySysLog.values()),
+      today_unwhitelisted_calls: Array.from(byCall.values()).slice(-20),
+      today_delete_events: mergedDeleteEvents.slice(-20),
+      contact_recent_dates: mergeRecentDatesMaps(l.contact_recent_dates, r.contact_recent_dates),
     };
   }
 
@@ -3590,7 +3708,8 @@
     if (geminiKey && (newChats.length > 0 || newSystemLogs.length > 0 || newAddedFriends.length > 0)) {
       try {
         setMobileAuditProgress(90, '🤖 正在呼叫 Gemini 3 Flash High 深度推理引擎 (90%)…', true);
-        const prompt = '你是台灣長輩 LINE 防詐守護系統的資深反詐騙 AI 稽核專家。請深度推理以下今日新增 LINE 對話摘要、今日新增好友紀錄與系統操作異常是否涉及養套殺、刺探貸款銀行卡、合資返款或教導規避銀行行員提問。【絕對禁止把系統操作日誌張冠李戴到一般親友聊天室】today_system_logs 中的裝置管理員、無障礙或懸浮窗權限警報屬於系統層級事件，絕對不可歸咎於一般親友日常通勤或生活對話（例如 JacK Lung 等）。請嚴格只回傳 JSON：{"overall_risk_level":"SAFE|MEDIUM|HIGH|CRITICAL","narrative":"150字內繁體中文結論","suspicious_chats":[{"chat_title":"...","risk_level":"HIGH|CRITICAL","reason":"..."}]}\n\n' + JSON.stringify({ new_chats: newChats, today_added_friends: todayAddedFriends, today_system_logs: newSystemLogs });
+        const behaviorRadarCtx = computeMobileBehaviorRadar(digest, mobileState);
+        const prompt = '你是台灣長輩 LINE 防詐守護系統的資深反詐騙 AI 稽核專家。請深度推理以下今日新增 LINE 對話摘要、今日行為雷達（點開次數、停留時間、非白名單通話、深夜互動與刪除／收回訊息反滅證訊號）、今日新增好友紀錄與系統操作異常是否涉及養套殺、刺探貸款銀行卡、合資返款或教導規避銀行行員提問。已列入白名單之親友聊天室（is_whitelisted=true）若僅有較高點擊次數或長通話，屬於正常聯繫，嚴禁僅因行為頻率誤判！【絕對禁止把系統操作日誌張冠李戴到一般親友聊天室】today_system_logs 中的裝置管理員、無障礙或懸浮窗權限警報屬於系統層級事件，絕對不可歸咎於一般親友日常通勤或生活對話（例如 JacK Lung 等）。請嚴格只回傳 JSON：{"overall_risk_level":"SAFE|MEDIUM|HIGH|CRITICAL","narrative":"150字內繁體中文結論","suspicious_chats":[{"chat_title":"...","risk_level":"HIGH|CRITICAL","reason":"..."}]}\n\n' + JSON.stringify({ new_chats: newChats, today_added_friends: todayAddedFriends, today_system_logs: newSystemLogs, daily_behavior_radar: behaviorRadarCtx });
         const candidateModels = ['gemini-3-flash-preview', 'gemini-3.1-flash-lite-preview', 'gemini-3.8-flash', 'gemini-3.7-flash'];
         let llmJson = null;
         let usedModel = 'gemini-3-flash-preview';
@@ -4099,6 +4218,147 @@
     return { summaryText, shareUrl };
   }
 
+  async function quickAddMobileRadarWhitelist(name) {
+    const cleanName = String(name || '').trim();
+    if (!cleanName) return;
+    const cfg = getActiveConfigInputs();
+    if (cfg.lineToken) {
+      try { await syncMobileCloudNow(false); } catch (e) {}
+    }
+    if (window.location.protocol.startsWith('http') && !cfg.customApiUrl) {
+      try {
+        const resp = await fetch('/api/whitelist/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: cleanName, is_group: false }),
+        });
+        if (resp.ok) {
+          const wlData = await resp.json();
+          if (wlData && wlData.config) {
+            mobileState = mergeEnvelopeState(mobileState, wlData.config);
+          }
+        }
+      } catch (e) {}
+    }
+    const nowMs = Date.now();
+    const list = Array.isArray(mobileState.whitelist_contacts) ? [...mobileState.whitelist_contacts] : [];
+    if (!list.some(x => String(x || '').trim().toLowerCase() === cleanName.toLowerCase())) list.push(cleanName);
+    mobileState.whitelist_contacts = list;
+    const addedAt = { ...(mobileState.whitelist_added_at || {}) };
+    const removedAt = { ...(mobileState.whitelist_removed_at || {}) };
+    let prevRem = 0;
+    for (const [k, v] of Object.entries(removedAt)) {
+      if (String(k || '').trim().toLowerCase() === cleanName.toLowerCase()) {
+        prevRem = Math.max(prevRem, Number(v || 0));
+      }
+    }
+    for (const k of Object.keys(addedAt)) {
+      if (String(k || '').trim().toLowerCase() === cleanName.toLowerCase()) delete addedAt[k];
+    }
+    addedAt[cleanName] = Math.max(nowMs, prevRem + 1);
+    mobileState.whitelist_added_at = addedAt;
+    mobileState.whitelist_removed_at = removedAt;
+    mobileState.config_revision_ms = Math.max(nowMs, Number(mobileState.config_revision_ms || 0) + 1);
+    localStorage.setItem(STORAGE_KEYS.cachedState, JSON.stringify(mobileState));
+    renderMobileState();
+    if (!(await syncMobileCloudNow(true))) return;
+    setBanner('mobile-sync-output', `✅ 已從行為雷達將「${cleanName}」加入白名單並同步雲端！`, true);
+  }
+
+  function computeMobileBehaviorRadar(digest, state) {
+    const dObj = (digest && typeof digest === 'object') ? digest : {};
+    const stObj = (state && typeof state === 'object') ? state : {};
+    const todayKey = String(dObj.date_key || dObj.date || getTaipeiDateKey(Date.now())).trim();
+    const wlNorms = new Set([
+      ...(stObj.whitelist_contacts || []),
+      ...(stObj.whitelist_groups || []),
+      ...(stObj.false_positive_exclusions || []),
+    ].map(x => stripWhitelistSuffix(String(x || '').trim()).toLowerCase()).filter(Boolean));
+    const blockedNorms = new Set(
+      (stObj.blocked_scam_contacts || []).map(x => stripWhitelistSuffix(String(x || '').trim()).toLowerCase()).filter(Boolean)
+    );
+    const recentDates = (dObj.contact_recent_dates && typeof dObj.contact_recent_dates === 'object') ? dObj.contact_recent_dates : {};
+    const countStreak = (datesArr, addToday) => {
+      const set = new Set(Array.isArray(datesArr) ? datesArr.map(x => String(x || '').trim()).filter(x => x.length === 10) : []);
+      if (addToday && todayKey.length === 10) set.add(todayKey);
+      if (!set.has(todayKey) || todayKey.length !== 10) return 0;
+      const parts = todayKey.split('-').map(Number);
+      const cursor = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+      let streak = 0;
+      while (streak < 14) {
+        const k = cursor.toISOString().slice(0, 10);
+        if (!set.has(k)) break;
+        streak += 1;
+        cursor.setUTCDate(cursor.getUTCDate() - 1);
+      }
+      return streak;
+    };
+    const rawChats = dObj.chats;
+    const chatList = Array.isArray(rawChats)
+      ? rawChats
+      : (rawChats && typeof rawChats === 'object'
+          ? Object.entries(rawChats).map(([k, v]) => (v && typeof v === 'object' ? Object.assign({ chat_title: k }, v) : { chat_title: k }))
+          : []);
+    const visited = [];
+    for (const ch of chatList) {
+      if (!ch || typeof ch !== 'object') continue;
+      const title = String(ch.chat_title || '').trim();
+      if (!title || isNoiseDigestRoomTitle(title, ch.messages || ch.sample_messages)) continue;
+      const normLow = stripWhitelistSuffix(title).toLowerCase();
+      if (blockedNorms.has(normLow)) continue;
+      const isWl = Boolean(ch.is_whitelisted) || wlNorms.has(normLow);
+      const openCount = Math.max(0, Number(ch.open_count || 0));
+      const dwellSeconds = Math.max(0, Number(ch.dwell_seconds || 0));
+      const turns = Array.isArray(ch.dialogue_turns) ? ch.dialogue_turns : [];
+      const turnMomCnt = turns.filter(t => t && String(t.speaker || '').toLowerCase() === 'mom').length;
+      const momReplyCount = Math.max(Math.max(0, Number(ch.mom_reply_count || 0)), turnMomCnt);
+      const lateNightVisitCount = Math.max(0, Number(ch.late_night_visit_count || 0));
+      const unsentCount = Math.max(0, Number(ch.unsent_count || 0));
+      const updatedAtMs = Math.max(0, Number(ch.updated_at_ms || ch.last_seen_ms || 0));
+      const cDates = recentDates[title] || recentDates[normLow] || [];
+      const streak = isWl ? 0 : countStreak(cDates, openCount > 0);
+      visited.push({
+        chat_title: title,
+        is_whitelisted: isWl,
+        open_count: openCount,
+        dwell_seconds: dwellSeconds,
+        mom_reply_count: momReplyCount,
+        late_night_visit_count: lateNightVisitCount,
+        unsent_count: unsentCount,
+        consecutive_days: streak,
+        updated_at_ms: updatedAtMs,
+      });
+    }
+    const topVisited = visited
+      .filter(x => x.open_count > 0)
+      .sort((a, b) => (b.open_count - a.open_count) || (b.dwell_seconds - a.dwell_seconds) || (b.mom_reply_count - a.mom_reply_count) || (b.updated_at_ms - a.updated_at_ms))
+      .slice(0, 3);
+    const topCalls = (Array.isArray(dObj.today_unwhitelisted_calls) ? dObj.today_unwhitelisted_calls : [])
+      .filter(c => c && typeof c === 'object' && String(c.caller_label || c.caller || '').trim())
+      .sort((a, b) => (Number(b.total_duration_seconds || 0) - Number(a.total_duration_seconds || 0)) || (Number(b.call_count || 1) - Number(a.call_count || 1)))
+      .slice(0, 3);
+    const lateNightChats = visited
+      .filter(x => !x.is_whitelisted && x.late_night_visit_count > 0)
+      .sort((a, b) => b.late_night_visit_count - a.late_night_visit_count)
+      .slice(0, 5);
+    const lateNightCalls = (Array.isArray(dObj.today_unwhitelisted_calls) ? dObj.today_unwhitelisted_calls : [])
+      .filter(c => c && Number(c.late_night_count || 0) > 0)
+      .slice(0, 5);
+    const deleteEvents = (Array.isArray(dObj.today_delete_events) ? dObj.today_delete_events : [])
+      .filter(ev => ev && typeof ev === 'object' && String(ev.chat_title || '').trim())
+      .sort((a, b) => Number(b.epoch_ms || 0) - Number(a.epoch_ms || 0))
+      .slice(0, 5);
+    return {
+      date_key: todayKey,
+      has_data: Boolean(topVisited.length || topCalls.length || lateNightChats.length || lateNightCalls.length || deleteEvents.length),
+      top_visited_chats: topVisited,
+      top_unwhitelisted_calls: topCalls,
+      late_night_stranger_chats: lateNightChats,
+      late_night_unwhitelisted_calls: lateNightCalls,
+      delete_or_unsent_events: deleteEvents,
+    };
+  }
+
   async function addMobileWhitelist(isGroup) {
     const input = $id(isGroup ? 'mobile-add-group-input' : 'mobile-add-contact-input');
     const name = (input.value || '').trim();
@@ -4504,6 +4764,93 @@
             ? dcItem.sample_messages
             : (Array.isArray(dcItem.messages) ? dcItem.messages : []);
           prev.sample_messages = (prev.sample_messages || []).concat(moreSamples);
+        }
+      }
+    }
+
+    const radarBox = $id('mobile-behavior-radar-box');
+    if (radarBox) {
+      const digestObj = mobileState.daily_chat_digest || {};
+      const radarData = computeMobileBehaviorRadar(digestObj, mobileState);
+      const fmtDur = (sec) => (sec >= 60 ? `${Math.round(sec / 60)} 分` : `${Math.max(0, Math.round(sec))} 秒`);
+      radarBox.innerHTML = '';
+      const hdr = document.createElement('div');
+      hdr.style.cssText = 'font-weight:800;color:#1e3a8a;';
+      hdr.textContent = '📡 今日行為雷達（點開 Top 3・陌生通話・深夜／反滅證）';
+      radarBox.appendChild(hdr);
+      if (!radarData.has_data) {
+        const emptyEl = document.createElement('div');
+        emptyEl.style.cssText = 'color:#64748b;margin-top:3px;';
+        emptyEl.textContent = '今日尚無點開聊天室排行、陌生通話或深夜／刪除異常紀錄（媽媽開啟 LINE 聊天室或接聽陌生通話後自動更新）。';
+        radarBox.appendChild(emptyEl);
+      } else {
+        if (radarData.top_visited_chats.length > 0) {
+          const secTitle = document.createElement('div');
+          secTitle.style.cssText = 'font-weight:800;color:#1e40af;margin-top:4px;';
+          secTitle.textContent = '🔥 今日最常點開聊天室 Top 3';
+          radarBox.appendChild(secTitle);
+          radarData.top_visited_chats.forEach((it, idx) => {
+            const row = document.createElement('div');
+            row.style.cssText = 'padding:3px 0;border-bottom:1px dashed #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;';
+            const txt = document.createElement('span');
+            const wlBadge = it.is_whitelisted ? '白名單✅' : '陌生⚠️';
+            const streakBadge = (!it.is_whitelisted && it.consecutive_days >= 2) ? ` · 連 ${it.consecutive_days} 天` : '';
+            txt.textContent = `#${idx + 1} ${it.chat_title}（${wlBadge}${streakBadge}）· ${it.open_count} 次 / ${fmtDur(it.dwell_seconds)} / 回覆 ${it.mom_reply_count} 則`;
+            row.appendChild(txt);
+            if (!it.is_whitelisted) {
+              const btns = document.createElement('span');
+              btns.style.cssText = 'display:inline-flex;gap:4px;flex-wrap:wrap;';
+              const wlBtn = document.createElement('button');
+              wlBtn.type = 'button';
+              wlBtn.className = 'ok';
+              wlBtn.style.cssText = 'padding:2px 6px;font-size:0.68rem;';
+              wlBtn.textContent = '✅ 白名單';
+              wlBtn.onclick = () => quickAddMobileRadarWhitelist(it.chat_title);
+              btns.appendChild(wlBtn);
+              const blkBtn = document.createElement('button');
+              blkBtn.type = 'button';
+              blkBtn.className = 'danger';
+              blkBtn.style.cssText = 'padding:2px 6px;font-size:0.68rem;';
+              blkBtn.textContent = '🧨 封鎖刪除';
+              blkBtn.onclick = () => blockAndDeleteMobileChat('', it.chat_title, it.chat_title);
+              btns.appendChild(blkBtn);
+              row.appendChild(btns);
+            }
+            radarBox.appendChild(row);
+          });
+        }
+        if (radarData.top_unwhitelisted_calls.length > 0) {
+          const cTitle = document.createElement('div');
+          cTitle.style.cssText = 'font-weight:800;color:#9a3412;margin-top:4px;';
+          cTitle.textContent = '📞 今日非白名單通話 Top 3';
+          radarBox.appendChild(cTitle);
+          radarData.top_unwhitelisted_calls.forEach((c, idx) => {
+            const row = document.createElement('div');
+            const cDur = Number(c.total_duration_seconds || 0);
+            row.textContent = `#${idx + 1} ${c.caller_label || c.caller} [${c.channel || 'CALL'}] · ${Number(c.call_count || 1)} 通 / ${cDur > 0 ? fmtDur(cDur) : '已記錄'}`;
+            radarBox.appendChild(row);
+          });
+        }
+        if (radarData.late_night_stranger_chats.length > 0 || radarData.late_night_unwhitelisted_calls.length > 0) {
+          const lnDiv = document.createElement('div');
+          lnDiv.style.cssText = 'margin-top:4px;padding:3px 6px;border-radius:6px;background:#eef2ff;color:#3730a3;font-weight:700;';
+          const parts = [
+            ...radarData.late_night_stranger_chats.slice(0, 3).map(x => `💬${x.chat_title}(${x.late_night_visit_count}次)`),
+            ...radarData.late_night_unwhitelisted_calls.slice(0, 3).map(x => `📞${x.caller_label || x.caller}(${x.late_night_count}通)`),
+          ];
+          lnDiv.textContent = `🌙 深夜陌生互動 (22:00–06:00)：${parts.join('｜')}`;
+          radarBox.appendChild(lnDiv);
+        }
+        if (radarData.delete_or_unsent_events.length > 0) {
+          const delDiv = document.createElement('div');
+          delDiv.style.cssText = 'margin-top:4px;padding:3px 6px;border-radius:6px;background:#fee2e2;color:#991b1b;font-weight:700;';
+          const dParts = radarData.delete_or_unsent_events.slice(0, 3).map(ev => {
+            const et = String(ev.event_type || '').toUpperCase();
+            const label = et === 'CHAT_DELETE_ATTEMPT' ? '嘗試刪除聊天室' : (et === 'CLEAR_CHAT_HISTORY' ? '清除對話紀錄' : `多次收回訊息(${Number(ev.unsent_count || 0)}則)`);
+            return `${ev.chat_title}(${label})`;
+          });
+          delDiv.textContent = `🗑️ 反滅證異常偵測：${dParts.join('｜')}`;
+          radarBox.appendChild(delDiv);
         }
       }
     }
