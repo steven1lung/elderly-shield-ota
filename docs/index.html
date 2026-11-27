@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta http-equiv="Content-Security-Policy" content="script-src 'sha256-uUQ0kOlThTDvOHoJ1WTPPyXtK8lloIL8X7JoettppdA='; object-src 'none'; base-uri 'none'; require-trusted-types-for 'script'; trusted-types 'none';" />
+  <meta http-equiv="Content-Security-Policy" content="script-src 'sha256-TNXKVZymheSWVkqVe6D5F9X6g768USKeSr/CcZWZ1cw='; object-src 'none'; base-uri 'none'; require-trusted-types-for 'script'; trusted-types 'none';" />
   <meta name="color-scheme" content="light dark" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -570,12 +570,12 @@
     }
   </style>
 </head>
-<body id="mobileGuardianPage" data-page="mobile-guardian" data-release-version="v1.1.5" data-version-code="104">
+<body id="mobileGuardianPage" data-page="mobile-guardian" data-release-version="v1.1.6" data-version-code="105">
   <a href="#main-content" class="skip-link visually-hidden">跳至主要內容</a>
   <div class="m-wrap">
     <header class="m-header">
       <h1>
-        <span>📱 長輩防詐隨身守護頁 <small class="m-ver-tag">v1.1.5</small></span>
+        <span>📱 長輩防詐隨身守護頁 <small class="m-ver-tag">v1.1.6</small></span>
         <span id="mobile-sync-badge" class="status-pill pill-warn" role="status" aria-live="polite">尚未同步</span>
       </h1>
       <p class="sub">
@@ -2111,18 +2111,31 @@
       const hasChats = Array.isArray(c) ? c.length > 0 : Boolean(c && typeof c === 'object' && Object.keys(c).length > 0);
       const hasFriends = Array.isArray(d.today_added_friends) && d.today_added_friends.length > 0;
       const hasLogs = Array.isArray(d.today_system_logs) && d.today_system_logs.length > 0;
-      return hasChats || hasFriends || hasLogs;
+      const hasCalls = Array.isArray(d.today_unwhitelisted_calls) && d.today_unwhitelisted_calls.length > 0;
+      const hasDeletes = Array.isArray(d.today_delete_events) && d.today_delete_events.length > 0;
+      return hasChats || hasFriends || hasLogs || hasCalls || hasDeletes;
     };
     const nonEmptyDates = [
       ...(hasDigestContent(l) && /^\d{4}-\d{2}-\d{2}$/.test(lDate) ? [lDate] : []),
       ...(hasDigestContent(r) && /^\d{4}-\d{2}-\d{2}$/.test(rDate) ? [rDate] : []),
     ].sort();
-    const todayKey = nonEmptyDates.length > 0
-      ? nonEmptyDates[nonEmptyDates.length - 1]
-      : ([lDate, rDate, realTodayKey]
-          .filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d))
-          .sort()
-          .pop() || realTodayKey);
+    const validDates = [lDate, rDate].filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+    const maxValidDate = validDates.length > 0 ? validDates[validDates.length - 1] : '';
+    let todayKey;
+    if (nonEmptyDates.length > 0) {
+      todayKey = nonEmptyDates[nonEmptyDates.length - 1];
+      if (realTodayKey > '2026-10-06' && maxValidDate === realTodayKey && todayKey < realTodayKey) {
+        todayKey = realTodayKey;
+      }
+    } else {
+      todayKey = ([lDate, rDate, realTodayKey]
+        .filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d))
+        .sort()
+        .pop() || realTodayKey);
+      if (realTodayKey > '2026-10-06' && (lDate === realTodayKey || rDate === realTodayKey)) {
+        todayKey = realTodayKey;
+      }
+    }
     const lValid = (lDate === todayKey);
     const rValid = (rDate === todayKey);
     const mergeRecentDatesMaps = (mA, mB) => {
@@ -2348,6 +2361,27 @@
       }
     }
     const bySysLog = new Map();
+    const extractAfTargetFromSys = (titleStr, summStr) => {
+      const sTitle = String(titleStr || '').trim();
+      const sSumm = String(summStr || '').trim();
+      const mP = sTitle.match(/^🔒\s*LINE\s*新增好友鎖定\s*[\(（]([^\)）]+)[\)）]/);
+      if (mP && mP[1]) return mP[1].trim();
+      const mS = `${sTitle} ${sSumm}`.match(/搜尋號碼[／\/]ID[：:]\s*([^\s\)）,，。；]+)/);
+      if (mS && mS[0]) return mS[0].trim();
+      return sTitle;
+    };
+    const extractSearchedIdFromAf = (targetOrTitle, summStr) => {
+      const comb = `${String(targetOrTitle || '')} ${String(summStr || '')}`;
+      const m = comb.match(/搜尋號碼[／\/]ID[：:]\s*([^\s\)）,，。；]+)/);
+      return m && m[1] ? m[1].trim() : '';
+    };
+    const isSearchedIdPrefixPair = (q1, q2) => {
+      const a = String(q1 || '').trim().toLowerCase();
+      const b = String(q2 || '').trim().toLowerCase();
+      if (!a || !b) return false;
+      if (a === b) return true;
+      return Math.min(a.length, b.length) >= 3 && (a.startsWith(b) || b.startsWith(a));
+    };
     const sysLogSources = [];
     if (lValid && Array.isArray(l.today_system_logs)) sysLogSources.push(l.today_system_logs);
     if (rValid && Array.isArray(r.today_system_logs)) sysLogSources.push(r.today_system_logs);
@@ -2375,9 +2409,28 @@
         if (isPinTamper) {
           ctitle = '🔒 攔截畫面連續輸入錯誤密碼';
         }
-        const sKey = isPermTamper
+        const isAddFriendLock = !isPermTamper && !isPinTamper && (atype === 'LINE_ADD_FRIEND_LOCKED' || ctitle.startsWith('🔒 LINE 新增好友鎖定'));
+        const afTarget = isAddFriendLock ? extractAfTargetFromSys(ctitle, summ) : '';
+        const afQueryId = isAddFriendLock ? extractSearchedIdFromAf(afTarget || ctitle, summ) : '';
+        let sKey = isPermTamper
           ? 'PERM_TAMPER|PERMISSION_REVOKED_DETECTED'
-          : (isPinTamper ? 'PIN_TAMPER|連續輸入錯誤密碼' : `${atype}|${ctitle}|${summ}`);
+          : (isPinTamper
+            ? 'PIN_TAMPER|連續輸入錯誤密碼'
+            : (isAddFriendLock
+              ? `LINE_ADD_FRIEND_LOCKED|${(afQueryId || afTarget || ctitle).toLowerCase()}`
+              : `${atype}|${ctitle}|${summ}`));
+        if (isAddFriendLock && afQueryId && !bySysLog.has(sKey)) {
+          for (const [exKey, exVal] of bySysLog.entries()) {
+            if (!exKey.startsWith('LINE_ADD_FRIEND_LOCKED|')) continue;
+            const exQid = extractSearchedIdFromAf(exVal.chat_title, exVal.summary);
+            const exEp = Number(exVal.epoch_ms || 0);
+            const withinBurst = epMs === 0 || exEp === 0 || Math.abs(epMs - exEp) <= 180000;
+            if (withinBurst && isSearchedIdPrefixPair(afQueryId, exQid)) {
+              sKey = exKey;
+              break;
+            }
+          }
+        }
         const prevS = bySysLog.get(sKey);
         const isUnlockLow = atype === 'OVERLAY_PIN_UNLOCK_SUCCESS';
         const defaultSysRl = (isPermTamper || isPinTamper) ? 'CRITICAL' : (isUnlockLow ? 'LOW' : 'HIGH');
@@ -2385,7 +2438,7 @@
           const synthAid = aid || (isPermTamper ? `tamper_${epMs || todayKey}_PERMISSION_REVOKED_DETECTED` : (isPinTamper ? `tamper_pin_${epMs || todayKey}` : ''));
           bySysLog.set(sKey, {
             alert_id: synthAid,
-            alert_type: isPermTamper ? 'PERMISSION_REVOKED_DETECTED' : (isPinTamper ? 'OVERLAY_PIN_TAMPER' : atype),
+            alert_type: isPermTamper ? 'PERMISSION_REVOKED_DETECTED' : (isPinTamper ? 'OVERLAY_PIN_TAMPER' : (isAddFriendLock ? 'LINE_ADD_FRIEND_LOCKED' : atype)),
             event_type: isPermTamper ? 'PERMISSION_REVOKED_DETECTED' : (isPinTamper ? 'OVERLAY_PIN_TAMPER' : (sItem.event_type || atype)),
             risk_level: (isPermTamper || isPinTamper) ? 'CRITICAL' : (isUnlockLow ? 'LOW' : String(sItem.risk_level || defaultSysRl).toUpperCase()),
             chat_title: ctitle,
@@ -2398,7 +2451,12 @@
           const prevCnt = Math.max(1, Number(prevS.occurrence_count || 1));
           const itemCnt = Math.max(1, Number(sItem.occurrence_count || sItem.repeat_count || 1));
           const samePinBurst = isPinTamper && epMs > 0 && prevEp > 0 && Math.abs(epMs - prevEp) <= 2000;
-          const sameId = (aid && aid === String(prevS.alert_id || '')) || (epMs > 0 && epMs === prevEp && (!aid || !prevS.alert_id)) || samePinBurst;
+          const prevAfQid = isAddFriendLock ? extractSearchedIdFromAf(prevS.chat_title, prevS.summary) : '';
+          const sameAfTypingBurst = isAddFriendLock && afQueryId && prevAfQid && epMs > 0 && prevEp > 0 && Math.abs(epMs - prevEp) <= 15000 && isSearchedIdPrefixPair(afQueryId, prevAfQid);
+          const sameId = (aid && aid === String(prevS.alert_id || '')) || (epMs > 0 && epMs === prevEp && (!aid || !prevS.alert_id)) || samePinBurst || sameAfTypingBurst;
+          const preferCurAf = isAddFriendLock && afQueryId && prevAfQid
+            ? (afQueryId.length > prevAfQid.length || (afQueryId.length === prevAfQid.length && epMs >= prevEp))
+            : (epMs >= prevEp);
           let bestSumm;
           if (isPinTamper) {
             const prevM = String(prevS.summary || '').match(/\((\d+)\s*次\)/);
@@ -2406,6 +2464,8 @@
             const prevN = prevM ? Number(prevM[1]) : 0;
             const curN = curM ? Number(curM[1]) : 0;
             bestSumm = curN >= prevN ? (summ || prevS.summary) : (prevS.summary || summ);
+          } else if (isAddFriendLock) {
+            bestSumm = preferCurAf ? (summ || prevS.summary) : (prevS.summary || summ);
           } else {
             bestSumm = (String(prevS.summary || '').includes('同時關閉') && !summ.includes('同時關閉'))
               ? prevS.summary
@@ -2413,11 +2473,11 @@
           }
           bySysLog.set(sKey, {
             ...prevS,
-            alert_id: epMs >= prevEp ? (aid || prevS.alert_id) : (prevS.alert_id || aid),
+            alert_id: preferCurAf ? (aid || prevS.alert_id) : (prevS.alert_id || aid),
             alert_type: isPermTamper ? 'PERMISSION_REVOKED_DETECTED' : (isPinTamper ? 'OVERLAY_PIN_TAMPER' : prevS.alert_type),
             event_type: isPermTamper ? 'PERMISSION_REVOKED_DETECTED' : (isPinTamper ? 'OVERLAY_PIN_TAMPER' : prevS.event_type),
             risk_level: isUnlockLow ? 'LOW' : ((isPermTamper || isPinTamper || String(prevS.risk_level || '') === 'CRITICAL' || String(sItem.risk_level || '') === 'CRITICAL') ? 'CRITICAL' : String(sItem.risk_level || prevS.risk_level || defaultSysRl).toUpperCase()),
-            chat_title: isPinTamper ? '🔒 攔截畫面連續輸入錯誤密碼' : (epMs >= prevEp ? (ctitle || prevS.chat_title) : (prevS.chat_title || ctitle)),
+            chat_title: isPinTamper ? '🔒 攔截畫面連續輸入錯誤密碼' : (preferCurAf ? (ctitle || prevS.chat_title) : (prevS.chat_title || ctitle)),
             summary: bestSumm,
             epoch_ms: Math.max(epMs, prevEp),
             occurrence_count: sameId ? Math.max(prevCnt, itemCnt) : (prevCnt + itemCnt),
